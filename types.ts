@@ -29,6 +29,8 @@ export interface OpenToWorkDetails {
 
 export interface UserData {
   alumniId: string;
+  status: 'pending' | 'verified';
+  paymentReceipt: string;
   personal: {
     firstName: string;
     lastName: string;

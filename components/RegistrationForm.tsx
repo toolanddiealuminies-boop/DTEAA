@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import type { UserData, EmployeeExperience, EntrepreneurExperience, OpenToWorkDetails } from '../types';
 
-// UI Components defined outside the main component
+// A type for the errors state. It's a deeply nested partial of UserData with string values for each field.
+// FIX: Corrected FormErrors type to handle primitive properties on UserData.
+// The original type incorrectly tried to map over properties of primitive types like 'string',
+// causing a type mismatch for fields like 'paymentReceipt'.
+// This new definition correctly assigns 'string' for primitive types and recursively maps object types.
+type FormErrors = {
+  [P in keyof UserData]?: UserData[P] extends object ? {
+    [K in keyof UserData[P]]?: UserData[P][K] extends object[]
+      ? (
+          { [EK in keyof UserData[P][K][number]]?: string } | undefined
+        )[]
+      : UserData[P][K] extends object
+      ? { [SK in keyof UserData[P][K]]?: string }
+      : string;
+  } : string;
+};
 
-const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string, optional?: boolean }> = ({ label, id, optional, ...props }) => {
+
+// UI Components defined outside the main component
+const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string, optional?: boolean, error?: string }> = ({ label, id, optional, error, ...props }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const isDate = props.type === 'date';
 
@@ -28,14 +45,10 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: str
     const handleIconClick = () => {
         const input = inputRef.current;
         if (!input) return;
-
-        // Ensure the input is of type 'date' before trying to show the picker
         input.type = 'date';
-        
         try {
             input.showPicker();
         } catch (error) {
-            // Fallback for browsers that don't support showPicker() or if it fails
             input.focus();
         }
     };
@@ -49,13 +62,15 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: str
             <input
                 id={id}
                 ref={inputRef}
-                className={`w-full bg-white text-[#2E2E2E] placeholder:text-[#999] px-3 py-2 border border-[#DDD2B5] rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#FFF9EE] focus:ring-[#E7A700] transition duration-200 
-                ${isDate ? 'pr-10' : ''}`}
+                className={`w-full bg-white text-[#2E2E2E] placeholder:text-[#999] px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#FFF9EE] transition duration-200 
+                ${isDate ? 'pr-10' : ''}
+                ${error ? 'border-red-500 focus:ring-red-500' : 'border-[#DDD2B5] focus:ring-[#E7A700]'}`}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
-                // Render as 'text' initially if it's a date field with no value to show the placeholder
                 type={isDate && !props.value ? 'text' : props.type}
                 placeholder={isDate ? 'DD / MM / YYYY' : props.placeholder}
+                aria-invalid={!!error}
+                aria-describedby={error ? `${id}-error` : undefined}
                 {...props}
             />
             {isDate && (
@@ -66,31 +81,40 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: str
                  </div>
             )}
         </div>
+        {error && <p id={`${id}-error`} className="mt-1 text-xs text-red-600 animate-fade-in">{error}</p>}
     </div>
 )};
 
-const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: string }> = ({ label, id, children, ...props }) => (
+const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: string, error?: string }> = ({ label, id, children, error, ...props }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-[#555555] mb-1">{label}</label>
         <select
             id={id}
-            className="w-full bg-white text-[#2E2E2E] px-3 py-2 border border-[#DDD2B5] rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#FFF9EE] focus:ring-[#E7A700] transition duration-200"
+            className={`w-full bg-white text-[#2E2E2E] px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#FFF9EE] transition duration-200
+            ${error ? 'border-red-500 focus:ring-red-500' : 'border-[#DDD2B5] focus:ring-[#E7A700]'}`}
+             aria-invalid={!!error}
+             aria-describedby={error ? `${id}-error` : undefined}
             {...props}
         >
             {children}
         </select>
+        {error && <p id={`${id}-error`} className="mt-1 text-xs text-red-600 animate-fade-in">{error}</p>}
     </div>
 );
 
-const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }> = ({ label, id, ...props }) => (
+const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string, error?: string }> = ({ label, id, error, ...props }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-[#555555] mb-1">{label}</label>
         <textarea
             id={id}
             rows={3}
-            className="w-full bg-white text-[#2E2E2E] placeholder:text-[#555555] px-3 py-2 border border-[#DDD2B5] rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#FFF9EE] focus:ring-[#E7A700] transition duration-200"
+            className={`w-full bg-white text-[#2E2E2E] placeholder:text-[#555555] px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#FFF9EE] transition duration-200
+             ${error ? 'border-red-500 focus:ring-red-500' : 'border-[#DDD2B5] focus:ring-[#E7A700]'}`}
+             aria-invalid={!!error}
+             aria-describedby={error ? `${id}-error` : undefined}
             {...props}
         />
+        {error && <p id={`${id}-error`} className="mt-1 text-xs text-red-600 animate-fade-in">{error}</p>}
     </div>
 );
 
@@ -116,7 +140,7 @@ interface RegistrationFormProps {
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-    const steps = ['Personal', 'Contact', 'Experience', 'Review'];
+    const steps = ['Personal', 'Contact', 'Experience', 'Review', 'Payment'];
     const activeColor = '#E7A700';
     const inactiveColor = '#D8C9A7';
     const activeTextColor = '#2E2E2E';
@@ -149,39 +173,142 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
 };
 
 const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserData, currentStep, setCurrentStep, onRegister }) => {
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+
+    const validateField = useCallback((section: keyof UserData, field: string, value: any, allData: UserData = userData): string => {
+        const requiredMsg = "This field is required.";
+        switch (`${section}.${field}`) {
+            case 'personal.firstName': return value ? '' : requiredMsg;
+            case 'personal.lastName': return value ? '' : requiredMsg;
+            case 'personal.passOutYear':
+                if (!value) return requiredMsg;
+                if (!/^\d{4}$/.test(value) || parseInt(value, 10) > new Date().getFullYear() || parseInt(value, 10) < 1950) {
+                    return "Please enter a valid 4-digit year.";
+                }
+                return '';
+            case 'personal.dob': return value ? '' : requiredMsg;
+            case 'personal.bloodGroup': return value ? '' : requiredMsg;
+            case 'personal.highestQualification': return value ? '' : requiredMsg;
+            case 'personal.altEmail':
+                if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    return "Please enter a valid email address.";
+                }
+                return '';
+            case 'contact.address': return value ? '' : requiredMsg;
+            case 'contact.city': return value ? '' : requiredMsg;
+            case 'contact.state': return value ? '' : requiredMsg;
+            case 'contact.country': return value ? '' : requiredMsg;
+            case 'contact.pincode':
+                if (!value) return requiredMsg;
+                if (!/^\d{5,6}$/.test(value)) return "Please enter a valid 5 or 6 digit pincode.";
+                return '';
+            case 'contact.mobile':
+                if (!value) return requiredMsg;
+                if (!/^\+?\d{10,15}$/.test(value)) return "Please enter a valid mobile number.";
+                return '';
+            default: return '';
+        }
+    }, [userData]);
+
 
     const handleChange = (section: keyof UserData, field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { value } = e.target;
-        setUserData(prev => ({
-            ...prev,
-            [section]: {
-                ...(prev[section] as any),
-                [field]: value
+        setUserData(prev => {
+           const newData = {
+                ...prev,
+                [section]: {
+                    ...(prev[section] as any),
+                    [field]: value
+                }
+            };
+            const error = validateField(section, field, value, newData);
+            setErrors(prevErrors => ({
+                ...prevErrors,
+                [section]: {
+                    ...(prevErrors[section] as any),
+                    [field]: error
+                }
+            }));
+            return newData;
+        });
+    };
+
+    const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                setUserData(prev => ({ ...prev, paymentReceipt: base64String }));
+                setReceiptPreview(base64String);
+                setErrors(prev => ({ ...prev, paymentReceipt: undefined }));
+            };
+            reader.readAsDataURL(file);
+        } else {
+            setUserData(prev => ({ ...prev, paymentReceipt: '' }));
+            setReceiptPreview(null);
+            if (file) { // If a file was selected but it's not an image
+              setErrors(prev => ({ ...prev, paymentReceipt: "Please upload a valid image file (PNG, JPG)." }));
             }
-        }));
+        }
     };
 
     const handleEmployeeChange = (index: number, field: keyof EmployeeExperience) => (e: React.ChangeEvent<HTMLInputElement>) => {
         const { value, type, checked } = e.target;
         const isCheckbox = type === 'checkbox';
-        const newEmployeeData = [...userData.experience.employee];
-        const currentEmployee = { ...newEmployeeData[index] };
-        (currentEmployee as any)[field] = isCheckbox ? checked : value;
+        const fieldValue = isCheckbox ? checked : value;
+        
+        setUserData(prev => {
+            const newEmployeeData = [...prev.experience.employee];
+            const currentEmployee = { ...newEmployeeData[index] };
+            (currentEmployee as any)[field] = fieldValue;
 
-        if (field === 'isCurrentEmployer' && checked) {
-            currentEmployee.endDate = '';
-        }
-        newEmployeeData[index] = currentEmployee;
-        setUserData(prev => ({ ...prev, experience: { ...prev.experience, employee: newEmployeeData } }));
-    };
+            if (field === 'isCurrentEmployer' && checked) {
+                currentEmployee.endDate = '';
+            }
+            newEmployeeData[index] = currentEmployee;
+            
+            if (field === 'isCurrentEmployer') {
+                const endDateError = checked ? '' : (currentEmployee.endDate ? '' : 'This field is required.');
+                setErrors(errs => {
+                    const empErrors = [...(errs.experience?.employee || [])];
+                    empErrors[index] = { ...empErrors[index], endDate: endDateError };
+                    return { ...errs, experience: { ...errs.experience, employee: empErrors } };
+                });
+             }
 
-    const handleEntrepreneurChange = (index: number, field: keyof EntrepreneurExperience) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { value } = e.target;
-        const newEntrepreneurData = [...userData.experience.entrepreneur];
-        (newEntrepreneurData[index] as any)[field] = value;
-        setUserData(prev => ({ ...prev, experience: { ...prev.experience, entrepreneur: newEntrepreneurData } }));
+            return { ...prev, experience: { ...prev.experience, employee: newEmployeeData } };
+        });
+
+        let error = '';
+        if (field === 'companyName' && !fieldValue) error = "Company name is required.";
+        if (field === 'designation' && !fieldValue) error = "Designation is required.";
+        if (field === 'startDate' && !fieldValue) error = "Start date is required.";
+        
+        setErrors(prev => {
+            const empErrors = [...(prev.experience?.employee || [])];
+            empErrors[index] = { ...empErrors[index], [field]: error };
+            return { ...prev, experience: { ...prev.experience, employee: empErrors } };
+        });
     };
     
+    const handleEntrepreneurChange = (index: number, field: keyof EntrepreneurExperience) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { value } = e.target;
+        setUserData(prev => ({
+            ...prev, experience: { ...prev.experience,
+                entrepreneur: prev.experience.entrepreneur.map((item, i) => i === index ? {...item, [field]: value} : item)
+            }
+        }));
+
+        const error = value ? '' : 'This field is required.';
+        setErrors(prev => {
+            const entErrors = [...(prev.experience?.entrepreneur || [])];
+            entErrors[index] = { ...entErrors[index], [field]: error };
+            return { ...prev, experience: { ...prev.experience, entrepreneur: entErrors } };
+        });
+    };
+
     const handleOpenToWorkDetailsChange = (field: keyof OpenToWorkDetails) => (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const { value } = e.target;
         setUserData(prev => ({
@@ -204,13 +331,19 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
     }
 
     const removeEmployeeExperience = (id: string) => {
+        const indexToRemove = userData.experience.employee.findIndex(exp => exp.id === id);
         setUserData(prev => ({
             ...prev,
             experience: {
                 ...prev.experience,
                 employee: prev.experience.employee.filter(exp => exp.id !== id)
             }
-        }))
+        }));
+        setErrors(prev => {
+            const empErrors = [...(prev.experience?.employee || [])];
+            if(indexToRemove > -1) empErrors.splice(indexToRemove, 1);
+            return {...prev, experience: {...prev.experience, employee: empErrors }};
+        });
     }
 
     const addEntrepreneurExperience = () => {
@@ -222,24 +355,66 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
           }
       }))
     }
-
+    
     const removeEntrepreneurExperience = (id: string) => {
+        const indexToRemove = userData.experience.entrepreneur.findIndex(exp => exp.id === id);
         setUserData(prev => ({
             ...prev,
             experience: {
                 ...prev.experience,
                 entrepreneur: prev.experience.entrepreneur.filter(exp => exp.id !== id)
             }
-        }))
+        }));
+        setErrors(prev => {
+            const entErrors = [...(prev.experience?.entrepreneur || [])];
+            if(indexToRemove > -1) entErrors.splice(indexToRemove, 1);
+            return {...prev, experience: {...prev.experience, entrepreneur: entErrors }};
+        });
     }
 
-    const nextStep = () => setCurrentStep(currentStep + 1);
+    const validateStep = (step: number) => {
+        const newErrors: FormErrors = {};
+        let isValid = true;
+        
+        const checkFields = (section: keyof UserData, fields: string[]) => {
+            const sectionErrors: { [key: string]: string } = {};
+            fields.forEach(field => {
+                const error = validateField(section, field, (userData[section] as any)[field]);
+                if (error) {
+                    sectionErrors[field] = error;
+                    isValid = false;
+                }
+            });
+            if (Object.keys(sectionErrors).length > 0) (newErrors as any)[section] = sectionErrors;
+        };
+
+        if (step === 1) {
+            checkFields('personal', ['firstName', 'lastName', 'passOutYear', 'dob', 'bloodGroup', 'highestQualification', 'altEmail']);
+        } else if (step === 2) {
+            checkFields('contact', ['address', 'city', 'state', 'pincode', 'country', 'mobile']);
+        }
+        
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return isValid;
+    };
+    
+    const nextStep = () => {
+        if (validateStep(currentStep)) {
+           setCurrentStep(currentStep + 1);
+        }
+    };
     const prevStep = () => setCurrentStep(currentStep - 1);
 
     const renderStep = () => {
-        const ReviewItem: React.FC<{ label: string; value?: string | React.ReactNode }> = ({ label, value }) => (
-            value ? <div><strong className="font-semibold text-[#2E2E2E]">{label}:</strong> {value}</div> : null
-        );
+       const ReviewDetailItem: React.FC<{ label: string; value?: string | React.ReactNode }> = ({ label, value }) => {
+            const hasValue = value && (typeof value !== 'string' || value.trim() !== '');
+            return (
+                <div>
+                    <p className="text-sm font-medium text-[#555555]">{label}</p>
+                    <p className="text-md text-[#2E2E2E] mt-1">{hasValue ? value : <span className="text-gray-400 italic">Not provided</span>}</p>
+                </div>
+            );
+        };
 
         switch (currentStep) {
             case 1:
@@ -247,24 +422,20 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                     <div className="animate-slide-up space-y-4">
                         <h3 className="text-xl font-semibold text-[#2E2E2E] border-b pb-2">Personal Details</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input label="First Name" id="firstName" value={userData.personal.firstName} onChange={handleChange('personal', 'firstName')} required />
-                            <Input label="Last Name" id="lastName" value={userData.personal.lastName} onChange={handleChange('personal', 'lastName')} required />
-                            <Input label="Year of Pass Out" id="passOutYear" type="number" placeholder="YYYY" value={userData.personal.passOutYear} onChange={handleChange('personal', 'passOutYear')} required />
-                            <Input label="Date of Birth" id="dob" type="date" value={userData.personal.dob} onChange={handleChange('personal', 'dob')} required />
-                            <Select label="Blood Group" id="bloodGroup" value={userData.personal.bloodGroup} onChange={handleChange('personal', 'bloodGroup')} required>
+                            <Input label="First Name" id="firstName" value={userData.personal.firstName} onChange={handleChange('personal', 'firstName')} required error={errors.personal?.firstName} />
+                            <Input label="Last Name" id="lastName" value={userData.personal.lastName} onChange={handleChange('personal', 'lastName')} required error={errors.personal?.lastName}/>
+                            <Input label="Year of Pass Out" id="passOutYear" type="number" placeholder="YYYY" value={userData.personal.passOutYear} onChange={handleChange('personal', 'passOutYear')} required error={errors.personal?.passOutYear}/>
+                            <Input label="Date of Birth" id="dob" type="date" value={userData.personal.dob} onChange={handleChange('personal', 'dob')} required error={errors.personal?.dob}/>
+                            <Select label="Blood Group" id="bloodGroup" value={userData.personal.bloodGroup} onChange={handleChange('personal', 'bloodGroup')} required error={errors.personal?.bloodGroup}>
                                 <option value="">Select Blood Group</option>
                                 {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
                             </Select>
-                            <Input label="Highest Qualification" id="highestQualification" value={userData.personal.highestQualification} onChange={handleChange('personal', 'highestQualification')} required />
+                            <Input label="Highest Qualification" id="highestQualification" value={userData.personal.highestQualification} onChange={handleChange('personal', 'highestQualification')} required error={errors.personal?.highestQualification}/>
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-[#555555] mb-1">
-                                    Email
-                                </label>
-                                <div id="email" className="w-full bg-[#F0ECE4] text-[#999] px-3 py-2 rounded-lg cursor-not-allowed">
-                                    {userData.personal.email}
-                                </div>
+                                <label htmlFor="email" className="block text-sm font-medium text-[#555555] mb-1">Email</label>
+                                <div id="email" className="w-full bg-[#F0ECE4] text-[#999] px-3 py-2 rounded-lg cursor-not-allowed">{userData.personal.email}</div>
                             </div>
-                            <Input label="Alternative Email" optional id="altEmail" type="email" value={userData.personal.altEmail} onChange={handleChange('personal', 'altEmail')} />
+                            <Input label="Alternative Email" optional id="altEmail" type="email" value={userData.personal.altEmail} onChange={handleChange('personal', 'altEmail')} error={errors.personal?.altEmail}/>
                         </div>
                     </div>
                 );
@@ -274,14 +445,14 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         <h3 className="text-xl font-semibold text-[#2E2E2E] border-b pb-2">Contact Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
-                                <TextArea label="Address" id="address" value={userData.contact.address} onChange={handleChange('contact', 'address')} required />
+                                <TextArea label="Address" id="address" value={userData.contact.address} onChange={handleChange('contact', 'address')} required error={errors.contact?.address}/>
                             </div>
-                            <Input label="City" id="city" value={userData.contact.city} onChange={handleChange('contact', 'city')} required />
-                            <Input label="State" id="state" value={userData.contact.state} onChange={handleChange('contact', 'state')} required />
-                            <Input label="Pin code / Zip code" id="pincode" value={userData.contact.pincode} onChange={handleChange('contact', 'pincode')} required />
-                            <Input label="Country" id="country" value={userData.contact.country} onChange={handleChange('contact', 'country')} required />
-                            <Input label="Mobile Number" id="mobile" type="tel" value={userData.contact.mobile} onChange={handleChange('contact', 'mobile')} required />
-                            <Input label="Telephone Number" optional id="telephone" type="tel" value={userData.contact.telephone} onChange={handleChange('contact', 'telephone')} />
+                            <Input label="City" id="city" value={userData.contact.city} onChange={handleChange('contact', 'city')} required error={errors.contact?.city}/>
+                            <Input label="State" id="state" value={userData.contact.state} onChange={handleChange('contact', 'state')} required error={errors.contact?.state}/>
+                            <Input label="Pin code / Zip code" id="pincode" value={userData.contact.pincode} onChange={handleChange('contact', 'pincode')} required error={errors.contact?.pincode}/>
+                            <Input label="Country" id="country" value={userData.contact.country} onChange={handleChange('contact', 'country')} required error={errors.contact?.country}/>
+                            <Input label="Mobile Number" id="mobile" type="tel" value={userData.contact.mobile} onChange={handleChange('contact', 'mobile')} required error={errors.contact?.mobile}/>
+                            <Input label="Telephone Number" optional id="telephone" type="tel" value={userData.contact.telephone} onChange={handleChange('contact', 'telephone')} error={errors.contact?.telephone}/>
                         </div>
                     </div>
                 );
@@ -289,48 +460,40 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 return (
                     <div className="animate-slide-up space-y-8">
                         <h3 className="text-xl font-semibold text-[#2E2E2E] border-b pb-2">Experience Details</h3>
-                        
-                        {/* Employee Experience Section */}
                         <div className="space-y-4">
                             <h4 className="font-semibold text-lg text-[#2E2E2E]">Employment History</h4>
                             {userData.experience.employee.map((exp, index) => (
                                 <div key={exp.id} className="p-4 border rounded-lg relative space-y-4 bg-white">
                                     <button onClick={() => removeEmployeeExperience(exp.id)} className="absolute top-2 right-2 text-2xl font-bold text-red-500 hover:text-red-700 leading-none">&times;</button>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <Input label="Company Name" id={`emp-company-${index}`} value={exp.companyName} onChange={handleEmployeeChange(index, 'companyName')} />
-                                        <Input label="Designation" id={`emp-designation-${index}`} value={exp.designation} onChange={handleEmployeeChange(index, 'designation')} />
-                                        <Input label="Employment Start" id={`emp-start-${index}`} type="date" value={exp.startDate} onChange={handleEmployeeChange(index, 'startDate')} />
-                                        <Input label="Employment End" id={`emp-end-${index}`} type="date" value={exp.endDate} onChange={handleEmployeeChange(index, 'endDate')} disabled={exp.isCurrentEmployer}/>
-                                        <div className="md:col-span-2 pt-2">
-                                            <Checkbox label="Current Employer" id={`emp-current-${index}`} checked={exp.isCurrentEmployer} onChange={handleEmployeeChange(index, 'isCurrentEmployer')} />
-                                        </div>
+                                        <Input label="Company Name" id={`emp-company-${index}`} value={exp.companyName} onChange={handleEmployeeChange(index, 'companyName')} error={errors.experience?.employee?.[index]?.companyName}/>
+                                        <Input label="Designation" id={`emp-designation-${index}`} value={exp.designation} onChange={handleEmployeeChange(index, 'designation')} error={errors.experience?.employee?.[index]?.designation}/>
+                                        <Input label="Employment Start" id={`emp-start-${index}`} type="date" value={exp.startDate} onChange={handleEmployeeChange(index, 'startDate')} error={errors.experience?.employee?.[index]?.startDate}/>
+                                        <Input label="Employment End" id={`emp-end-${index}`} type="date" value={exp.endDate} onChange={handleEmployeeChange(index, 'endDate')} disabled={exp.isCurrentEmployer} error={errors.experience?.employee?.[index]?.endDate}/>
+                                        <div className="md:col-span-2 pt-2"><Checkbox label="Current Employer" id={`emp-current-${index}`} checked={exp.isCurrentEmployer} onChange={handleEmployeeChange(index, 'isCurrentEmployer')} /></div>
                                     </div>
                                 </div>
                             ))}
                             <button type="button" onClick={addEmployeeExperience} className="text-sm font-semibold text-[#E7A700] hover:text-[#CF9500] transition">+ Add Employment</button>
                         </div>
-                        
-                        {/* Entrepreneur Experience Section */}
                         <div className="space-y-4 pt-4 border-t">
                              <h4 className="font-semibold text-lg text-[#2E2E2E]">Entrepreneurial Ventures</h4>
                              {userData.experience.entrepreneur.map((exp, index) => (
                                  <div key={exp.id} className="p-4 border rounded-lg relative space-y-4 bg-white">
                                     <button onClick={() => removeEntrepreneurExperience(exp.id)} className="absolute top-2 right-2 text-2xl font-bold text-red-500 hover:text-red-700 leading-none">&times;</button>
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <Input label="Company Name" id={`ent-company-${index}`} value={exp.companyName} onChange={handleEntrepreneurChange(index, 'companyName')} />
-                                        <Input label="Nature of Business" id={`ent-business-${index}`} value={exp.natureOfBusiness} onChange={handleEntrepreneurChange(index, 'natureOfBusiness')} />
-                                        <div className="md:col-span-2"><TextArea label="Company Address" id={`ent-address-${index}`} value={exp.address} onChange={handleEntrepreneurChange(index, 'address')} /></div>
-                                        <Input label="City" id={`ent-city-${index}`} value={exp.city} onChange={handleEntrepreneurChange(index, 'city')} />
-                                        <Input label="State" id={`ent-state-${index}`} value={exp.state} onChange={handleEntrepreneurChange(index, 'state')} />
-                                        <Input label="Pin code / Zip Code" id={`ent-pincode-${index}`} value={exp.pincode} onChange={handleEntrepreneurChange(index, 'pincode')} />
-                                        <Input label="Country" id={`ent-country-${index}`} value={exp.country} onChange={handleEntrepreneurChange(index, 'country')} />
+                                        <Input label="Company Name" id={`ent-company-${index}`} value={exp.companyName} onChange={handleEntrepreneurChange(index, 'companyName')} error={errors.experience?.entrepreneur?.[index]?.companyName}/>
+                                        <Input label="Nature of Business" id={`ent-business-${index}`} value={exp.natureOfBusiness} onChange={handleEntrepreneurChange(index, 'natureOfBusiness')} error={errors.experience?.entrepreneur?.[index]?.natureOfBusiness}/>
+                                        <div className="md:col-span-2"><TextArea label="Company Address" id={`ent-address-${index}`} value={exp.address} onChange={handleEntrepreneurChange(index, 'address')} error={errors.experience?.entrepreneur?.[index]?.address}/></div>
+                                        <Input label="City" id={`ent-city-${index}`} value={exp.city} onChange={handleEntrepreneurChange(index, 'city')} error={errors.experience?.entrepreneur?.[index]?.city}/>
+                                        <Input label="State" id={`ent-state-${index}`} value={exp.state} onChange={handleEntrepreneurChange(index, 'state')} error={errors.experience?.entrepreneur?.[index]?.state}/>
+                                        <Input label="Pin code / Zip Code" id={`ent-pincode-${index}`} value={exp.pincode} onChange={handleEntrepreneurChange(index, 'pincode')} error={errors.experience?.entrepreneur?.[index]?.pincode}/>
+                                        <Input label="Country" id={`ent-country-${index}`} value={exp.country} onChange={handleEntrepreneurChange(index, 'country')} error={errors.experience?.entrepreneur?.[index]?.country}/>
                                     </div>
                                  </div>
                              ))}
                             <button type="button" onClick={addEntrepreneurExperience} className="text-sm font-semibold text-[#E7A700] hover:text-[#CF9500] transition">+ Add Venture</button>
                         </div>
-
-                        {/* Open to Work Section */}
                         <div className="space-y-4 pt-4 border-t">
                             <Checkbox 
                                 label="I am currently open to work"
@@ -353,69 +516,144 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 return (
                     <div className="animate-slide-up space-y-6">
                         <h3 className="text-2xl font-bold text-[#2E2E2E] border-b pb-3 mb-4">Review Your Details</h3>
-                        {/* Personal */}
+                        
                         <div className="p-5 border rounded-lg bg-white">
                             <div className="flex justify-between items-center mb-4">
                                 <h4 className="font-semibold text-lg text-[#2E2E2E]">Personal Details</h4>
                                 <button onClick={() => setCurrentStep(1)} className="text-sm font-medium text-[#E7A700] hover:underline">Edit</button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                <ReviewItem label="Name" value={`${userData.personal.firstName} ${userData.personal.lastName}`} />
-                                <ReviewItem label="Pass Out Year" value={userData.personal.passOutYear} />
-                                <ReviewItem label="Date of Birth" value={userData.personal.dob} />
-                                <ReviewItem label="Blood Group" value={userData.personal.bloodGroup} />
-                                <ReviewItem label="Qualification" value={userData.personal.highestQualification} />
-                                <ReviewItem label="Email" value={userData.personal.email} />
-                                <ReviewItem label="Alt Email" value={userData.personal.altEmail} />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                <ReviewDetailItem label="Full Name" value={`${userData.personal.firstName} ${userData.personal.lastName}`} />
+                                <ReviewDetailItem label="Pass Out Year" value={userData.personal.passOutYear} />
+                                <ReviewDetailItem label="Date of Birth" value={userData.personal.dob} />
+                                <ReviewDetailItem label="Blood Group" value={userData.personal.bloodGroup} />
+                                <ReviewDetailItem label="Highest Qualification" value={userData.personal.highestQualification} />
+                                <ReviewDetailItem label="Email" value={userData.personal.email} />
+                                <ReviewDetailItem label="Alternative Email" value={userData.personal.altEmail} />
                             </div>
                         </div>
-                         {/* Contact */}
-                         <div className="p-5 border rounded-lg bg-white">
+
+                        <div className="p-5 border rounded-lg bg-white">
                             <div className="flex justify-between items-center mb-4">
                                 <h4 className="font-semibold text-lg text-[#2E2E2E]">Contact Information</h4>
                                 <button onClick={() => setCurrentStep(2)} className="text-sm font-medium text-[#E7A700] hover:underline">Edit</button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                               <div className="col-span-2"><strong className="font-semibold text-[#2E2E2E]">Address:</strong> {`${userData.contact.address}, ${userData.contact.city}, ${userData.contact.state}, ${userData.contact.country} - ${userData.contact.pincode}`}</div>
-                                <ReviewItem label="Mobile" value={userData.contact.mobile} />
-                                <ReviewItem label="Telephone" value={userData.contact.telephone} />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                <div className="sm:col-span-2">
+                                    <ReviewDetailItem 
+                                        label="Full Address" 
+                                        value={[userData.contact.address, userData.contact.city, userData.contact.state, userData.contact.pincode, userData.contact.country].filter(Boolean).join(', ')} 
+                                    />
+                                </div>
+                                <ReviewDetailItem label="Mobile Number" value={userData.contact.mobile} />
+                                <ReviewDetailItem label="Telephone Number" value={userData.contact.telephone} />
                             </div>
                         </div>
-                        {/* Experience */}
+
                         {(userData.experience.employee.length > 0 || userData.experience.entrepreneur.length > 0 || userData.experience.isOpenToWork) && (
                              <div className="p-5 border rounded-lg bg-white">
                                 <div className="flex justify-between items-center mb-4">
                                     <h4 className="font-semibold text-lg text-[#2E2E2E]">Experience Details</h4>
                                     <button onClick={() => setCurrentStep(3)} className="text-sm font-medium text-[#E7A700] hover:underline">Edit</button>
                                 </div>
-                                <div className="space-y-4 text-sm">
-                                  {userData.experience.employee.map((exp) => (
-                                      <div key={exp.id} className="pl-4 border-l-2 border-[#E7A700]">
-                                          <p className="font-bold">{exp.companyName}</p>
-                                          <ReviewItem label="Designation" value={exp.designation} />
-                                          <ReviewItem label="Duration" value={`${exp.startDate} to ${exp.isCurrentEmployer ? 'Present' : exp.endDate}`} />
+                                <div className="space-y-4">
+                                    {userData.experience.employee.map((exp, index) => (
+                                        <div key={exp.id} className={`pt-4 ${index === 0 ? 'pt-0' : 'border-t mt-4'}`}>
+                                            <p className="font-semibold text-md text-[#2E2E2E]">{exp.companyName}</p>
+                                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                                                <ReviewDetailItem label="Designation" value={exp.designation} />
+                                                <ReviewDetailItem label="Duration" value={`${exp.startDate} to ${exp.isCurrentEmployer ? 'Present' : exp.endDate}`} />
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {userData.experience.entrepreneur.map((exp, index) => (
+                                      <div key={exp.id} className={`pt-4 ${index === 0 && userData.experience.employee.length === 0 ? 'pt-0' : 'border-t mt-4'}`}>
+                                          <p className="font-semibold text-md text-[#2E2E2E]">{exp.companyName}</p>
+                                          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                                              <ReviewDetailItem label="Nature of Business" value={exp.natureOfBusiness} />
+                                              <div className="sm:col-span-2">
+                                                  <ReviewDetailItem label="Company Address" value={[exp.address, exp.city, exp.state, exp.pincode, exp.country].filter(Boolean).join(', ')} />
+                                              </div>
+                                          </div>
                                       </div>
-                                  ))}
-                                  {userData.experience.entrepreneur.map((exp) => (
-                                      <div key={exp.id} className="pl-4 border-l-2 border-[#E7A700] mt-4">
-                                        <p className="font-bold">{exp.companyName}</p>
-                                          <ReviewItem label="Business Nature" value={exp.natureOfBusiness} />
-                                          <ReviewItem label="Address" value={`${exp.address}, ${exp.city}`} />
+                                    ))}
+                                  
+                                    {userData.experience.isOpenToWork && (
+                                      <div className={`pt-4 ${(userData.experience.employee.length > 0 || userData.experience.entrepreneur.length > 0) ? 'border-t mt-4' : ''}`}>
+                                        <p className="font-semibold text-md text-green-600">Open to Work</p>
+                                        <div className="mt-2 grid grid-cols-1 gap-y-4 text-sm">
+                                            <ReviewDetailItem label="Technical Skills" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.technicalSkills}</p>} />
+                                            <ReviewDetailItem label="Certifications" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.certifications}</p>} />
+                                            <ReviewDetailItem label="Soft Skills" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.softSkills}</p>} />
+                                            <ReviewDetailItem label="Other" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.other}</p>} />
+                                        </div>
                                       </div>
-                                  ))}
-                                  {userData.experience.isOpenToWork && (
-                                    <div className="pl-4 border-l-2 border-green-500 mt-4">
-                                      <p className="font-bold text-green-600">Open to Work</p>
-                                      <ReviewItem label="Technical Skills" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.technicalSkills}</p>} />
-                                      <ReviewItem label="Certifications" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.certifications}</p>} />
-                                      <ReviewItem label="Soft Skills" value={<p className="whitespace-pre-wrap">{userData.experience.openToWorkDetails.softSkills}</p>} />
-                                    </div>
-                                  )}
+                                    )}
                                 </div>
                              </div>
                         )}
                     </div>
                 );
+            case 5:
+              return (
+                <div className="animate-slide-up space-y-6">
+                    <h3 className="text-2xl font-bold text-[#2E2E2E] border-b pb-3 mb-4">Payment & Submission</h3>
+                    
+                    {/* Fee Details */}
+                    <div className="p-5 border rounded-lg bg-white">
+                        <h4 className="font-semibold text-lg text-[#2E2E2E] mb-4">Fee Structure</h4>
+                        <ul className="space-y-2 text-[#555555]">
+                            <li className="flex justify-between"><span>Entry Fee (One-time)</span> <span className="font-medium text-[#2E2E2E]">₹100</span></li>
+                            <li className="flex justify-between"><span>Membership Fee (Yearly)</span> <span className="font-medium text-[#2E2E2E]">₹600</span></li>
+                            <li className="flex justify-between border-t pt-2 font-bold text-[#2E2E2E]"><span>Total Amount</span> <span>₹700</span></li>
+                        </ul>
+                    </div>
+
+                    {/* Payment Instructions */}
+                    <div className="p-5 border rounded-lg bg-white">
+                        <h4 className="font-semibold text-lg text-[#2E2E2E] mb-4">Payment Methods</h4>
+                        <div className="space-y-4">
+                            <div>
+                                <p className="font-semibold">UPI</p>
+                                <p className="text-md text-[#555555] bg-[#F7F4EF] p-2 rounded-md mt-1">dtee@icici.com</p>
+                            </div>
+                            <div>
+                                <p className="font-semibold">Bank Account</p>
+                                <div className="text-md text-[#555555] bg-[#F7F4EF] p-2 rounded-md mt-1 space-y-1">
+                                    <p><strong>Account Holder:</strong> Dindigul Tool Engineering Alumni Association</p>
+                                    <p><strong>Account Number:</strong> 012345678901</p>
+                                    <p><strong>Bank:</strong> ICICI Bank, Dindigul Branch</p>
+                                    <p><strong>IFSC Code:</strong> ICIC0001234</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Receipt Upload */}
+                    <div className="p-5 border rounded-lg bg-white">
+                        <h4 className="font-semibold text-lg text-[#2E2E2E] mb-2">Upload Receipt</h4>
+                        <p className="text-sm text-[#555555] mb-4">Please upload a screenshot of your transaction as proof of payment.</p>
+                        <input
+                            type="file"
+                            id="receiptUpload"
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/jpg"
+                            onChange={handleReceiptUpload}
+                        />
+                        <label htmlFor="receiptUpload" className="cursor-pointer inline-flex items-center justify-center px-4 py-2 bg-[#F7F4EF] border border-[#DDD2B5] rounded-lg shadow-sm text-md font-medium text-[#2E2E2E] hover:bg-[#F0ECE4]">
+                           Choose File...
+                        </label>
+                        {receiptPreview && (
+                            <div className="mt-4">
+                                <p className="text-sm font-medium text-[#555555] mb-2">Receipt Preview:</p>
+                                <img src={receiptPreview} alt="Receipt Preview" className="max-w-xs rounded-md border p-1" />
+                            </div>
+                        )}
+                        {errors.paymentReceipt && <p className="mt-2 text-xs text-red-600 animate-fade-in">{errors.paymentReceipt}</p>}
+                    </div>
+                </div>
+              );
             default: return null;
         }
     }
@@ -437,19 +675,20 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         >
                             Back
                         </button>
-                        {currentStep < 4 ? (
+                        {currentStep < 5 ? (
                             <button
                                 type="button"
                                 onClick={nextStep}
                                 className="px-5 py-2 bg-[#E7A700] text-white rounded-lg font-semibold hover:bg-[#CF9500] transition-all duration-300 transform hover:scale-105"
                             >
-                                Next
+                                {currentStep === 4 ? 'Proceed to Payment' : 'Next'}
                             </button>
                         ) : (
                              <button
                                 type="button"
                                 onClick={onRegister}
-                                className="px-5 py-2 bg-[#E7A700] text-white rounded-lg font-semibold hover:bg-[#CF9500] transition-all duration-300 transform hover:scale-105"
+                                disabled={!userData.paymentReceipt}
+                                className="px-5 py-2 bg-[#E7A700] text-white rounded-lg font-semibold hover:bg-[#CF9500] disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                             >
                                 Submit & Register
                             </button>

@@ -16,11 +16,20 @@ const DetailItem: React.FC<{ label: string; value?: string | null }> = ({ label,
 };
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
+  const isPending = userData.status === 'pending';
+
   return (
     <div className="bg-[#FFF9EE] p-8 rounded-xl shadow-2xl w-full max-w-3xl mx-auto animate-slide-up border border-[#DDD2B5]">
       <div className="text-center mb-8 border-b pb-4">
-        <h2 className="text-3xl font-bold text-green-600">Registration Successful!</h2>
-        <p className="text-[#555555] mt-2">Welcome to the DTE Alumni Association. Here is your profile.</p>
+        <h2 className={`text-3xl font-bold ${isPending ? 'text-orange-500' : 'text-green-600'}`}>
+          {isPending ? 'Submission Received!' : 'Registration Successful!'}
+        </h2>
+        <p className="text-[#555555] mt-2 max-w-xl mx-auto">
+          {isPending 
+            ? "Thank you for registering! Your registration is pending. You will receive a confirmation email with your official ID card after your payment has been verified by our team."
+            : "Welcome to the DTE Alumni Association. Here is your confirmed profile."
+          }
+        </p>
       </div>
 
       <div className="space-y-10">

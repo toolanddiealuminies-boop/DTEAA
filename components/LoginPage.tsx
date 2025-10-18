@@ -2,6 +2,7 @@ import React from 'react';
 
 interface LoginPageProps {
   onLogin: () => void;
+  onAdminLogin: () => void;
 }
 
 const GoogleIcon = () => (
@@ -14,18 +15,26 @@ const GoogleIcon = () => (
 );
 
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onAdminLogin }) => {
   return (
     <div className="bg-[#FFF9EE] p-8 sm:p-12 rounded-xl shadow-2xl text-center max-w-md mx-auto animate-fade-in border border-[#DDD2B5]">
       <h3 className="text-2xl font-bold text-[#2E2E2E] mb-2">Welcome Alumni!</h3>
       <p className="text-[#555555] mb-8">Please sign in to continue to your profile or register.</p>
-      <button
-        onClick={onLogin}
-        className="w-full inline-flex items-center justify-center px-4 py-3 bg-[#F7F4EF] border border-[#DDD2B5] rounded-lg shadow-sm text-md font-medium text-[#2E2E2E] hover:bg-[#F0ECE4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700] transition-all duration-300 transform hover:scale-105 hover:shadow-md"
-      >
-        <GoogleIcon />
-        Sign in with Google
-      </button>
+      <div className="space-y-4">
+        <button
+          onClick={onLogin}
+          className="w-full inline-flex items-center justify-center px-4 py-3 bg-[#F7F4EF] border border-[#DDD2B5] rounded-lg shadow-sm text-md font-medium text-[#2E2E2E] hover:bg-[#F0ECE4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700] transition-all duration-300 transform hover:scale-105 hover:shadow-md"
+        >
+          <GoogleIcon />
+          Sign in with Google
+        </button>
+        <button
+          onClick={onAdminLogin}
+          className="w-full inline-flex items-center justify-center px-4 py-3 bg-transparent text-sm font-medium text-[#555555] hover:text-[#2E2E2E] transition-colors"
+        >
+          Admin Login
+        </button>
+      </div>
     </div>
   );
 };
