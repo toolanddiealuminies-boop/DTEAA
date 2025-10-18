@@ -203,13 +203,18 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
         }
     };
     
-    const handleExperienceChange = <T extends EmployeeExperience | EntrepreneurExperience>(type: 'employee' | 'entrepreneur', index: number, field: keyof T) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    // FIX: Updated the function signature to correctly link the 'type' of experience ('employee' or 'entrepreneur')
+    // with its corresponding fields. This resolves TypeScript errors where valid fields were being rejected.
+    const handleExperienceChange = <K extends 'employee' | 'entrepreneur'>(type: K, index: number, field: keyof UserData['experience'][K][number]) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { value, type: inputType, checked } = e.target as HTMLInputElement;
         setUserData(prev => {
             const newExperience = [...prev.experience[type]];
             newExperience[index] = {
                 ...newExperience[index],
-                [field]: inputType === 'checkbox' ? checked : value
+                // The value is cast to `any` because TypeScript can't verify that the dynamic value (string or boolean)
+                // matches the specific type of the dynamic `field`. The application logic ensures correctness
+                // (e.g., checkboxes for booleans, text inputs for strings).
+                [field]: (inputType === 'checkbox' ? checked : value) as any,
             };
             return {
                 ...prev,
