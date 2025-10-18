@@ -1,0 +1,57 @@
+import React from 'react';
+
+export interface EmployeeExperience {
+  id: string;
+  companyName: string;
+  designation: string;
+  startDate: string;
+  endDate: string;
+  isCurrentEmployer: boolean;
+}
+
+export interface EntrepreneurExperience {
+  id: string;
+  companyName: string;
+  natureOfBusiness: string;
+  address: string;
+  city: string;
+  pincode: string;
+  state: string;
+  country: string;
+}
+
+export interface OpenToWorkDetails {
+  technicalSkills: string;
+  certifications: string;
+  softSkills: string;
+  other: string;
+}
+
+export interface UserData {
+  alumniId: string;
+  personal: {
+    firstName: string;
+    lastName: string;
+    passOutYear: string;
+    dob: string;
+    bloodGroup: string;
+    email: string;
+    altEmail: string;
+    highestQualification: string;
+  };
+  contact: {
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+    mobile: string;
+    telephone: string;
+  };
+  experience: {
+    employee: EmployeeExperience[];
+    entrepreneur: EntrepreneurExperience[];
+    isOpenToWork: boolean;
+    openToWorkDetails: OpenToWorkDetails;
+  };
+}
