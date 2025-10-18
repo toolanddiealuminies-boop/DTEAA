@@ -1,9 +1,5 @@
 import React from 'react';
-
-interface LoginPageProps {
-  onLogin: () => void;
-  onAdminLogin: () => void;
-}
+import { supabase } from '../lib/supabase';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-3" viewBox="0 0 48 48">
@@ -14,25 +10,31 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const LoginPage: React.FC = () => {
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) {
+      console.error('Error logging in with Google:', error);
+      alert('Failed to sign in. Please check the console for details.');
+    }
+  };
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onAdminLogin }) => {
   return (
     <div className="bg-[#FFF9EE] p-8 sm:p-12 rounded-xl shadow-2xl text-center max-w-md mx-auto animate-fade-in border border-[#DDD2B5]">
       <h3 className="text-2xl font-bold text-[#2E2E2E] mb-2">Welcome Alumni!</h3>
       <p className="text-[#555555] mb-8">Please sign in to continue to your profile or register.</p>
       <div className="space-y-4">
         <button
-          onClick={onLogin}
+          onClick={handleGoogleLogin}
           className="w-full inline-flex items-center justify-center px-4 py-3 bg-[#F7F4EF] border border-[#DDD2B5] rounded-lg shadow-sm text-md font-medium text-[#2E2E2E] hover:bg-[#F0ECE4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700] transition-all duration-300 transform hover:scale-105 hover:shadow-md"
         >
           <GoogleIcon />
           Sign in with Google
-        </button>
-        <button
-          onClick={onAdminLogin}
-          className="w-full inline-flex items-center justify-center px-4 py-3 bg-transparent text-sm font-medium text-[#555555] hover:text-[#2E2E2E] transition-colors"
-        >
-          Admin Login
         </button>
       </div>
     </div>

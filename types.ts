@@ -28,9 +28,11 @@ export interface OpenToWorkDetails {
 }
 
 export interface UserData {
+  id: string; // Corresponds to Supabase auth.users.id
+  role: 'user' | 'admin';
   alumniId: string;
   status: 'pending' | 'verified';
-  paymentReceipt: string;
+  paymentReceipt: string; // Stores the public URL from Supabase Storage
   personal: {
     firstName: string;
     lastName: string;

@@ -3,7 +3,7 @@ import type { UserData } from '../types';
 
 interface AdminDashboardProps {
   users: UserData[];
-  onVerify: (alumniId: string) => void;
+  onVerify: (userId: string) => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onVerify }) => {
@@ -20,7 +20,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onVerify }) => {
         {pendingUsers.length > 0 ? (
           <div className="space-y-4">
             {pendingUsers.map(user => (
-              <div key={user.alumniId} className="p-4 border rounded-lg bg-white flex flex-col md:flex-row md:items-start gap-4">
+              <div key={user.id} className="p-4 border rounded-lg bg-white flex flex-col md:flex-row md:items-start gap-4">
                 <div className="flex-grow">
                   <p className="font-bold text-lg">{user.personal.firstName} {user.personal.lastName}</p>
                   <p className="text-sm text-[#555555]">{user.alumniId}</p>
@@ -29,14 +29,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onVerify }) => {
                 <div className="flex-shrink-0">
                   <p className="text-sm font-medium mb-1">Payment Receipt:</p>
                   {user.paymentReceipt ? (
-                     <img src={user.paymentReceipt} alt="Payment Receipt" className="rounded-md w-48 h-auto border" />
+                     <a href={user.paymentReceipt} target="_blank" rel="noopener noreferrer">
+                       <img src={user.paymentReceipt} alt="Payment Receipt" className="rounded-md w-48 h-auto border hover:opacity-80 transition-opacity" />
+                     </a>
                   ) : (
                     <p className="text-xs text-red-500">No receipt uploaded.</p>
                   )}
                 </div>
                 <div className="md:pl-4 self-center">
                   <button
-                    onClick={() => onVerify(user.alumniId)}
+                    onClick={() => onVerify(user.id)}
                     className="w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all duration-300"
                   >
                     Verify & Approve
@@ -56,7 +58,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onVerify }) => {
          {verifiedUsers.length > 0 ? (
            <ul className="space-y-2">
             {verifiedUsers.map(user => (
-               <li key={user.alumniId} className="p-3 border rounded-lg bg-white flex justify-between items-center">
+               <li key={user.id} className="p-3 border rounded-lg bg-white flex justify-between items-center">
                  <div>
                     <p className="font-semibold">{user.personal.firstName} {user.personal.lastName}</p>
                     <p className="text-sm text-[#555555]">{user.alumniId}</p>

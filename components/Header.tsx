@@ -12,9 +12,11 @@ const DteLogo = () => (
 
 interface HeaderProps {
   isRegistered: boolean;
+  isLoggedIn: boolean;
+  onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isRegistered }) => {
+const Header: React.FC<HeaderProps> = ({ isRegistered, isLoggedIn, onLogout }) => {
   return (
     <header className="sticky top-0 z-50 bg-[#FFFDF8]/90 backdrop-blur-sm shadow-sm border-b border-[#DDD2B5]/50">
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,25 +27,36 @@ const Header: React.FC<HeaderProps> = ({ isRegistered }) => {
             <span className="ml-3 text-xl font-bold text-[#2E2E2E] hidden sm:block">DTE Alumni</span>
           </a>
 
-          {/* Navigation */}
-          {isRegistered && (
-            <nav aria-label="Main navigation">
-              <ul className="flex items-center space-x-4 sm:space-x-6">
-                <li>
-                  <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Home</a>
-                </li>
-                <li>
-                  <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Events</a>
-                </li>
-                <li>
-                  <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Directory</a>
-                </li>
-                <li>
-                  <a href="#" className="px-3 py-2 text-sm font-medium text-white bg-[#E7A700] rounded-md hover:bg-[#CF9500] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Profile</a>
-                </li>
-              </ul>
-            </nav>
-          )}
+          <div className="flex items-center space-x-4">
+            {/* Navigation */}
+            {isRegistered && (
+              <nav aria-label="Main navigation">
+                <ul className="flex items-center space-x-4 sm:space-x-6">
+                  <li>
+                    <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Home</a>
+                  </li>
+                  <li>
+                    <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Events</a>
+                  </li>
+                  <li>
+                    <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Directory</a>
+                  </li>
+                  <li>
+                    <a href="#" className="px-3 py-2 text-sm font-medium text-white bg-[#E7A700] rounded-md hover:bg-[#CF9500] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Profile</a>
+                  </li>
+                </ul>
+              </nav>
+            )}
+            
+            {isLoggedIn && (
+               <button 
+                 onClick={onLogout} 
+                 className="px-3 py-2 text-sm font-medium text-[#555555] hover:text-[#2E2E2E] transition-colors duration-200"
+               >
+                Logout
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>
