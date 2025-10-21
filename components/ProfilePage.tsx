@@ -1,5 +1,6 @@
 import React from 'react';
 import type { UserData } from '../types';
+import IdCard from './IdCard';
 
 interface ProfilePageProps {
   userData: UserData;
@@ -24,12 +25,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
       <div className="text-center mb-8 border-b pb-4">
         {/* Verified banner */}
         {isVerified ? (
-          <div className="rounded-md p-4 bg-green-50 border border-green-200">
-            <h2 className="text-3xl font-bold text-green-600">🎉 Congratulations!</h2>
-            <p className="text-[#2E2E2E] mt-2 max-w-xl mx-auto">
-              You are registered and verified as a member of the DTE Alumni Association.
-              You should have received a confirmation and your official alumni ID: <span className="font-semibold text-[#CF9500]">{userData.alumniId || '—'}</span>
-            </p>
+          <div className="space-y-6">
+            <div className="rounded-md p-4 bg-green-50 border border-green-200">
+              <h2 className="text-3xl font-bold text-green-600">🎉 Congratulations!</h2>
+              <p className="text-[#2E2E2E] mt-2 max-w-xl mx-auto">
+                You are registered and verified as a member of the DTE Alumni Association.
+                You should have received a confirmation and your official alumni ID: <span className="font-semibold text-[#CF9500]">{userData.alumniId || '—'}</span>
+              </p>
+            </div>
+            
+            {/* ID Card */}
+            <div>
+              <IdCard userData={userData} />
+            </div>
           </div>
         ) : (
           // Pending / submitted or generic success state
@@ -50,9 +58,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
       <div className="space-y-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <div className="w-28 h-28 bg-gradient-to-br from-[#E7A700] to-[#CF9500] rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-lg">
-                { (userData.personal.firstName?.charAt(0) || '') + (userData.personal.lastName?.charAt(0) || '') }
-            </div>
+            {userData.personal.profilePhoto ? (
+                <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#E7A700] shadow-lg">
+                    <img 
+                        src={userData.personal.profilePhoto} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+            ) : (
+                <div className="w-28 h-28 bg-gradient-to-br from-[#E7A700] to-[#CF9500] rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-lg">
+                    { (userData.personal.firstName?.charAt(0) || '') + (userData.personal.lastName?.charAt(0) || '') }
+                </div>
+            )}
             <div>
                 <h3 className="text-3xl font-bold text-[#2E2E2E] text-center sm:text-left">{userData.personal.firstName} {userData.personal.lastName}</h3>
                 <p className="text-lg text-[#E7A700] font-semibold text-center sm:text-left">{userData.alumniId || '—'}</p>

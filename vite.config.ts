@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        allowedHosts: ['dteaa.onrender.com'],
+        allowedHosts: ['dteaa.onrender.com', 'a0b1cd5d0fe4.ngrok-free.app'],
       },
       plugins: [react()],
       define: {
