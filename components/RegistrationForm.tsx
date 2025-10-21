@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import type { UserData, EmployeeExperience, EntrepreneurExperience, OpenToWorkDetails } from '../types';
+import { supabase } from '../lib/supabaseClient'; // <--- new import
 
 type FormErrors = {
   [P in keyof UserData]?: UserData[P] extends object ? {
@@ -13,8 +14,6 @@ type FormErrors = {
   } : string;
 } & { paymentReceipt?: string };
 
-
-// FIX: Implement the Input component to return JSX.
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string, optional?: boolean, error?: string }> = ({ label, id, optional, error, ...props }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const isDate = props.type === 'date';
@@ -34,7 +33,6 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: str
     );
 };
 
-// ... (Select, TextArea, Checkbox components are unchanged) -> Implementing for completeness.
 const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; children: React.ReactNode; optional?: boolean; error?: string }> = ({ label, id, children, optional, error, ...props }) => (
     <div className="relative pb-5">
         <label htmlFor={id} className="block text-sm font-medium text-[#555555] mb-1">
@@ -85,7 +83,6 @@ const Checkbox: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: 
     </div>
 );
 
-
 interface RegistrationFormProps {
     userData: UserData;
     setUserData: React.Dispatch<React.SetStateAction<UserData>>;
@@ -94,7 +91,6 @@ interface RegistrationFormProps {
     onRegister: (receiptFile: File) => void;
 }
 
-// FIX: Implement the Stepper component to return JSX.
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
     const steps = ['Personal', 'Contact', 'Experience', 'Review', 'Payment'];
     return (
@@ -125,8 +121,10 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
     const [errors, setErrors] = useState<FormErrors>({});
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
+
     // Hydrate from localStorage if userData is empty (defensive).
     useEffect(() => {
+        let didHydrate = false;
         try {
             const hasName = Boolean(userData && userData.personal && userData.personal.firstName);
             if (!hasName && typeof window !== 'undefined') {
@@ -135,14 +133,57 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                     const parsed = JSON.parse(saved);
                     if (parsed) {
                         setUserData(parsed);
+                        didHydrate = true;
                     }
                 }
             }
         } catch (e) {
             // ignore parse errors
-            // console.warn('hydration failed', e);
         }
-    }, []);
+
+        // If we didn't hydrate from localStorage, try Supabase session (for prefilled email)
+        (async () => {
+            try {
+                if (!didHydrate && (!userData || !userData.personal || !userData.personal.email)) {
+                    const getSession = (supabase.auth as any).getSession || (supabase.auth as any).session;
+                    if (getSession) {
+                        const result = await (supabase.auth as any).getSession();
+                        const s = result?.data?.session ?? result?.session ?? null;
+                        if (s && s.user) {
+                            setUserData(prev => ({
+                                ...prev,
+                                id: prev?.id || s.user.id || '',
+                                personal: {
+                                    ...prev?.personal,
+                                    email: prev?.personal?.email || s.user.email || '',
+                                    firstName: prev?.personal?.firstName || ((s.user.user_metadata?.full_name && s.user.user_metadata.full_name.split(' ')[0]) || ''),
+                                    lastName: prev?.personal?.lastName || ((s.user.user_metadata?.full_name && s.user.user_metadata.full_name.split(' ').slice(1).join(' ')) || ''),
+                                }
+                            }));
+                        }
+                    } else {
+                        // older API fallback: supabase.auth.user()
+                        const user = (supabase.auth as any).user ? (supabase.auth as any).user() : null;
+                        if (user) {
+                            setUserData(prev => ({
+                                ...prev,
+                                id: prev?.id || user.id || '',
+                                personal: {
+                                    ...prev?.personal,
+                                    email: prev?.personal?.email || user.email || '',
+                                    firstName: prev?.personal?.firstName || ((user.user_metadata?.full_name && user.user_metadata.full_name.split(' ')[0]) || ''),
+                                    lastName: prev?.personal?.lastName || ((user.user_metadata?.full_name && user.user_metadata.full_name.split(' ').slice(1).join(' ')) || ''),
+                                }
+                            }));
+                        }
+                    }
+                }
+            } catch (err) {
+                // ignore session errors
+                // console.warn('Session hydrate failed', err);
+            }
+        })();
+    }, [setUserData, userData]);
 
     const validateField = useCallback((section: keyof UserData, field: string, value: any, allData: UserData = userData): string => {
         const requiredMsg = "This field is required.";
@@ -178,7 +219,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             default: return '';
         }
     }, [userData]);
-
 
     const handleChange = (section: keyof UserData, field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { value } = e.target;
@@ -220,18 +260,13 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             }
         }
     };
-    
-    // FIX: Updated the function signature to correctly link the 'type' of experience ('employee' or 'entrepreneur')
-    // with its corresponding fields. This resolves TypeScript errors where valid fields were being rejected.
+
     const handleExperienceChange = <K extends 'employee' | 'entrepreneur'>(type: K, index: number, field: keyof UserData['experience'][K][number]) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { value, type: inputType, checked } = e.target as HTMLInputElement;
         setUserData(prev => {
             const newExperience = [...prev.experience[type]];
             newExperience[index] = {
                 ...newExperience[index],
-                // The value is cast to `any` because TypeScript can't verify that the dynamic value (string or boolean)
-                // matches the specific type of the dynamic `field`. The application logic ensures correctness
-                // (e.g., checkboxes for booleans, text inputs for strings).
                 [field]: (inputType === 'checkbox' ? checked : value) as any,
             };
             return {
@@ -248,7 +283,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
         const newExp = type === 'employee'
             ? { id: `${Date.now()}`, companyName: '', designation: '', startDate: '', endDate: '', isCurrentEmployer: false }
             : { id: `${Date.now()}`, companyName: '', natureOfBusiness: '', address: '', city: '', pincode: '', state: '', country: '' };
-        
+
         setUserData(prev => ({
             ...prev,
             experience: {
@@ -280,8 +315,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             }
         }));
     };
-    
-    // FIX: Add prevStep and nextStep functions
+
     const prevStep = () => setCurrentStep(Math.max(1, currentStep - 1));
 
     const nextStep = () => {
@@ -309,22 +343,18 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             });
             if (!isValid) newErrors.contact = contactErrors;
         }
-        
+
         setErrors(newErrors);
 
         if (isValid) {
-    // Persist the form to localStorage so Review / Payment can read it if memory is lost
-    try {
-      localStorage.setItem('alumniForm', JSON.stringify(userData));
-    } catch (e) {
-      // ignore localStorage errors
-      console.warn('Could not persist form to localStorage', e);
-    }
-    setCurrentStep(Math.min(5, currentStep + 1));
-}
-
+            try {
+              localStorage.setItem('alumniForm', JSON.stringify(userData));
+            } catch (e) {
+              console.warn('Could not persist form to localStorage', e);
+            }
+            setCurrentStep(Math.min(5, currentStep + 1));
+        }
     };
-
 
     const handleSubmit = () => {
         if (receiptFile) {
@@ -350,7 +380,11 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                 <option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
                             </Select>
                             <Input label="Highest Qualification" id="highestQualification" value={userData.personal.highestQualification} onChange={handleChange('personal', 'highestQualification')} error={errors.personal?.highestQualification} />
-                            <Input label="Email Address" id="email" type="email" value={userData.personal.email} disabled />
+                            {/* Email: disabled only when value exists */}
+                            <div>
+                                <Input label="Email Address" id="email" type="email" value={userData.personal.email} onChange={handleChange('personal', 'email')} disabled={!!userData.personal.email} />
+                                {userData.personal.email && <p className="mt-1 text-xs text-gray-500">Email taken from your sign-in method and cannot be changed here.</p>}
+                            </div>
                             <Input label="Alternate Email" id="altEmail" type="email" optional value={userData.personal.altEmail} onChange={handleChange('personal', 'altEmail')} error={errors.personal?.altEmail} />
                         </div>
                     </div>
@@ -529,30 +563,9 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
           )}
         </div>
       </section>
-
-      {/* Footer Buttons */}
-      <div className="flex justify-between items-center mt-4">
-        <button type="button" className="px-4 py-2 border rounded" onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}>Back</button>
-        <div>
-          <button
-            type="button"
-            className="px-6 py-2 rounded bg-yellow-500 text-white shadow"
-            onClick={() => {
-              // persist and go to payment
-              try {
-                localStorage.setItem('alumniForm', JSON.stringify(userData));
-              } catch (e) {
-                // ignore
-              }
-              setCurrentStep(5);
-            }}
-          >
-            Proceed to Payment
-          </button>
-        </div>
-      </div>
     </div>
   );
+
 
             case 5: // Payment
                  return (
@@ -572,7 +585,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 return null;
         }
     };
-    
+
     return (
         <div className="bg-[#FFF9EE] p-6 sm:p-8 rounded-xl shadow-2xl w-full border border-[#DDD2B5]">
             <Stepper currentStep={currentStep - 1} />
