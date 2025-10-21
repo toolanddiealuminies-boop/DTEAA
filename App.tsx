@@ -59,51 +59,74 @@ const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
 
   // fetch profile by user id and update local state
-  const fetchUserProfile = useCallback(
-    async (userId: string | undefined) => {
-      if (!userId) return;
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
+  const fetchUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-        }
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching profile:', error);
+    }
 
-        if (data) {
-          setUserData(data);
-          setRegistrationFormData(data);
-          setIsRegistered(true);
-        } else {
-          // no profile found - prefill registration form from session if possible
-          setIsRegistered(false);
-          setRegistrationFormData(prev => {
-            // use session values as default if available
-            const email = session?.user?.email || prev.personal.email || '';
-            const fullName = session?.user?.user_metadata?.full_name || '';
-            const first = fullName ? fullName.split(' ')[0] : prev.personal.firstName;
-            const last = fullName ? fullName.split(' ').slice(1).join(' ') : prev.personal.lastName;
-            return {
-              ...initialUserData,
-              id: session?.user?.id || prev.id || '',
-              personal: {
-                ...initialUserData.personal,
-                email,
-                firstName: first || '',
-                lastName: last || '',
-              },
-            };
-          });
+    if (data) {
+      // Map DB (snake_case) fields to frontend camelCase shape expected by the app
+      const mapped: UserData = {
+        id: data.id,
+        role: (data.role as any) || 'user',
+        alumniId: (data.alumni_id ?? (data.alumniId as any)) || '',
+        status: data.status || 'pending',
+        paymentReceipt: data.payment_receipt ?? (data.paymentReceipt as any) ?? '',
+        personal: data.personal ?? {
+          firstName: '',
+          lastName: '',
+          passOutYear: '',
+          dob: '',
+          bloodGroup: '',
+          email: '',
+          altEmail: '',
+          highestQualification: '',
+        },
+        contact: data.contact ?? {
+          address: '',
+          city: '',
+          state: '',
+          pincode: '',
+          country: '',
+          mobile: '',
+          telephone: '',
+        },
+        experience: data.experience ?? {
+          employee: [],
+          entrepreneur: [],
+          isOpenToWork: false,
+          openToWorkDetails: {
+            technicalSkills: '',
+            certifications: '',
+            softSkills: '',
+            other: '',
+          },
+        },
+      };
+
+      setUserData(mapped);
+      setRegistrationFormData(mapped);
+      setIsRegistered(true);
+    } else {
+      setIsRegistered(false);
+      setRegistrationFormData(prev => ({
+        ...initialUserData,
+        id: session?.user.id || '',
+        personal: {
+          ...initialUserData.personal,
+          email: session?.user?.email || '',
+          firstName: (session?.user?.user_metadata?.full_name || '').split(' ')[0] || '',
+          lastName: (session?.user?.user_metadata?.full_name || '').split(' ').slice(1).join(' ') || '',
         }
-      } catch (err) {
-        console.error('fetchUserProfile error', err);
-      }
-    },
-    [session]
-  );
+      }));
+    }
+  };
 
   const fetchAllUsers = useCallback(async () => {
     if (userData?.role !== 'admin') return;
@@ -230,9 +253,31 @@ const App: React.FC = () => {
       }
     };
     // Run once on mount. We intentionally omit fetchUserProfile from deps to avoid resubscribing.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Keep registrationFormData in sync with the authenticated session user
+  useEffect(() => {
+    if (session?.user) {
+      setRegistrationFormData(prev => ({
+        ...prev,
+        id: session.user.id,
+        personal: {
+          ...prev.personal,
+          email: session.user.email || prev.personal.email,
+          firstName: (session.user.user_metadata?.full_name || '').split(' ')[0] || prev.personal.firstName,
+          lastName: (session.user.user_metadata?.full_name || '').split(' ').slice(1).join(' ') || prev.personal.lastName,
+        }
+      }));
+
+      // Clear any stale persisted form state to avoid inserting old ids
+      try {
+        localStorage.removeItem('alumniForm');
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [session?.user?.id]);
 
   // When userData updates check for admin view / fetch users
   useEffect(() => {
@@ -260,106 +305,162 @@ const App: React.FC = () => {
 
   // registration handler (upload receipt + insert profile)
   const handleRegister = async (receiptFile: File) => {
-  if (!session?.user) {
-    alert("You must be logged in to register.");
-    return;
-  }
+    if (!session?.user) return alert("You must be logged in to register.");
+    if (!registrationFormData.personal.passOutYear) {
+      alert("Year of Pass Out is required to generate an ID.");
+      setCurrentStep(1);
+      return;
+    }
 
-  if (!registrationFormData.personal.passOutYear) {
-    alert("Year of Pass Out is required to generate an ID.");
-    setCurrentStep(1);
-    return;
-  }
-
-  try {
-    // Upload receipt
+    // upload receipt
     const fileExt = receiptFile.name.split('.').pop();
     const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('receipts')
-      .upload(fileName, receiptFile);
+    const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, receiptFile);
 
     if (uploadError) {
-      console.error('Storage upload error', { uploadError, uploadData });
-      alert(`Failed to upload payment receipt: ${uploadError.message || JSON.stringify(uploadError)}`);
+      alert('Failed to upload payment receipt. Please try again.');
       return;
     }
 
-    // Get public URL (or use signed URL if bucket is private)
-    const { data: publicData, error: publicError } = await supabase.storage
-      .from('receipts')
-      .getPublicUrl(fileName);
+    // Use public url (works if bucket is public)
+    const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
+    const publicUrl = urlData?.publicUrl || '';
 
-    if (publicError) {
-      console.error('getPublicUrl error', { publicError, publicData });
-      alert('Uploaded receipt but could not get public URL. Check bucket permissions.');
+    const year = registrationFormData.personal.passOutYear;
+    if (!/^\d{4}$/.test(year)) {
+      alert('Invalid pass out year.');
       return;
     }
 
-    const publicUrl = publicData?.publicUrl ?? '';
+    // Helper to compute next sequential number for the year
+    const computeNextAlumniId = async (): Promise<string> => {
+      // Find the latest alumni_id for this year
+      const likePattern = `DTEAA-${year}-%`;
+      const res = await supabase
+        .from('profiles')
+        .select('alumni_id')
+        .ilike('alumni_id', likePattern)
+        .order('alumni_id', { ascending: false })
+        .limit(1);
 
-    // Create unique alumni id
-    const uniqueNum = String(Math.floor(Math.random() * 9000) + 1000).padStart(4, '0');
-    const alumniId = `DTEAA-${registrationFormData.personal.passOutYear}-${uniqueNum}`;
+      if (res.error) {
+        console.warn('Error finding latest alumni_id:', res.error);
+        return `DTEAA-${year}-0001`;
+      }
 
-    // IMPORTANT: use the auth user id from the session to satisfy FK constraint
-    const userId = session.user.id;
+      const row = res.data && res.data[0];
+      if (!row || !row.alumni_id) {
+        return `DTEAA-${year}-0001`;
+      }
 
-    // Build the row to insert
-    const profileRow = {
-      id: userId,                     // <- use session.user.id (not registrationFormData.id)
-      alumni_id: alumniId,
-      payment_receipt: publicUrl,
-      personal: registrationFormData.personal,
-      contact: registrationFormData.contact,
-      experience: registrationFormData.experience,
-      // optionally: status/role if you want to override defaults
-      // status: 'pending', role: 'user'
+      // parse last 4 digits and increment
+      const parts = row.alumni_id.split('-');
+      const last = parts[parts.length - 1];
+      const num = parseInt(last, 10);
+      const next = Number.isFinite(num) ? num + 1 : 1;
+      return `DTEAA-${year}-${String(next).padStart(4, '0')}`;
     };
 
-    const { data: insertedData, error: insertError, status, statusText } = await supabase
-      .from('profiles')
-      .insert(profileRow)
-      .select()
-      .single();
+    // Try inserting with retry in case of unique constraint conflict
+    const MAX_ATTEMPTS = 5;
+    let attempt = 0;
+    let insertedData: any = null;
+    while (attempt < MAX_ATTEMPTS) {
+      attempt += 1;
+      const alumniId = await computeNextAlumniId();
 
-    if (insertError) {
-      console.error('Insert error', { insertError, status, statusText, profileRow });
-      alert(`Failed to save your registration. (${insertError.message || insertError?.details || 'unknown error'})`);
+      // Prepare row to insert (use snake_case columns to match DB)
+      // IMPORTANT: enforce the current authenticated uid here to satisfy RLS
+      const profileRow = {
+        id: session.user.id,
+        alumni_id: alumniId,
+        payment_receipt: publicUrl,
+        personal: registrationFormData.personal,
+        contact: registrationFormData.contact,
+        experience: registrationFormData.experience
+      };
 
-      // cleanup uploaded file if needed
-      try {
-        await supabase.storage.from('receipts').remove([fileName]);
-      } catch (cleanupErr) {
-        console.warn('Failed to cleanup uploaded file after insert error', cleanupErr);
+      const { data: insertRes, error: insertError } = await supabase
+        .from('profiles')
+        .insert(profileRow)
+        .select()
+        .single();
+
+      if (insertError) {
+        // If conflict on unique alumni_id, retry (someone else might have created the same id just now)
+        const msg = (insertError as any).message || JSON.stringify(insertError);
+        console.warn(`Insert attempt #${attempt} failed: ${msg}`);
+
+        // detect unique constraint violation (Postgres unique violation)
+        // error code for unique constraint is usually "23505" for Postgres; supabase-js error shape may vary
+        const isUniqueConflict = insertError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
+        if (isUniqueConflict && attempt < MAX_ATTEMPTS) {
+          // brief wait then retry
+          await new Promise(r => setTimeout(r, 200 * attempt));
+          continue;
+        } else {
+          alert('Failed to save your registration. Please try again later.');
+          // cleanup uploaded file if desired
+          try {
+            await supabase.storage.from('receipts').remove([fileName]);
+          } catch (e) { /* ignore */ }
+          return;
+        }
       }
-      return;
+
+      if (insertRes) {
+        insertedData = insertRes;
+        break;
+      }
     }
 
-    // success
-    setUserData(insertedData);
-    setIsRegistered(true);
-    console.info('Registration saved', insertedData);
-  } catch (err) {
-    console.error('Unexpected error in handleRegister', err);
-    alert('An unexpected error occurred during registration. Check console for details.');
-  }
-};
+    if (insertedData) {
+      // Map DB fields to frontend expected shape (same as fetchUserProfile)
+      const mapped: UserData = {
+        id: insertedData.id,
+        role: insertedData.role ?? 'user',
+        alumniId: insertedData.alumni_id ?? '',
+        status: insertedData.status ?? 'pending',
+        paymentReceipt: insertedData.payment_receipt ?? '',
+        personal: insertedData.personal ?? registrationFormData.personal,
+        contact: insertedData.contact ?? registrationFormData.contact,
+        experience: insertedData.experience ?? registrationFormData.experience
+      };
 
+      setUserData(mapped);
+      setIsRegistered(true);
+    } else {
+      alert('Failed to save your registration after multiple attempts. Please try again.');
+      // cleanup uploaded file
+      try {
+        await supabase.storage.from('receipts').remove([fileName]);
+      } catch (e) { /* ignore */ }
+    }
+  };
 
+  // inside App.tsx
   const handleVerify = async (userId: string) => {
     if (userData?.role !== 'admin') return alert("Permission denied.");
 
     try {
-      const { error } = await supabase.from('profiles').update({ status: 'verified' }).eq('id', userId);
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ status: 'verified' })
+        .eq('id', userId)
+        .select()
+        .single();
 
       if (error) {
-        alert(`Failed to verify user ${userId}.`);
-      } else {
-        setAllUsers(users => users.map(user => user.id === userId ? { ...user, status: 'verified' } : user));
-        alert(`User ${userId} has been verified. A confirmation email simulation has been triggered.`);
+        console.error('Verify update error', error);
+        alert(`Failed to verify user ${userId}. (${error.message || error.details || 'unknown error'})`);
+        return;
       }
+
+      // Refresh the list so AdminDashboard sees latest data
+      await fetchAllUsers();
+
+      // Optionally: you could trigger an email or notification here (server-side)
+      alert(`User ${userId} marked as verified.`);
     } catch (err) {
       console.error('handleVerify error', err);
       alert(`Failed to verify user ${userId}.`);
@@ -387,14 +488,15 @@ const App: React.FC = () => {
   return (
     <>
       <Header
-  isRegistered={isRegistered}
-  isLoggedIn={!!session}
-  onLogout={handleLogout}
-  isAdminView={isAdminView}
-  onAdminClick={() => setIsAdminView(true)}
-/>
-      <div className="flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-24 font-sans">
-        <div className="w-full max-w-4xl mx-auto">
+        isRegistered={isRegistered}
+        isLoggedIn={!!session}
+        onLogout={handleLogout}
+        isAdminView={isAdminView}
+        onAdminClick={() => setIsAdminView(true)}
+      />
+      
+      <div className="flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-24 font-sans min-h-screen">
+        <div className="w-full max-w-4xl mx-auto mt-8">
           <header className="text-center mb-8 animate-fade-in">
             <h1 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#E7A700] to-[#CF9500] pb-2">
               Dindigul Tool Engineering
