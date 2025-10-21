@@ -14,53 +14,48 @@ interface HeaderProps {
   isRegistered: boolean;
   isLoggedIn: boolean;
   onLogout: () => void;
+  isAdminView?: boolean;
+  onAdminClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isRegistered, isLoggedIn, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ isRegistered, isLoggedIn, onLogout, isAdminView, onAdminClick }) => {
   return (
-    <header className="sticky top-0 z-50 bg-[#FFFDF8]/90 backdrop-blur-sm shadow-sm border-b border-[#DDD2B5]/50">
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <a href="#" className="flex-shrink-0 flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700] rounded-lg">
-            <DteLogo />
-            <span className="ml-3 text-xl font-bold text-[#2E2E2E] hidden sm:block">DTE Alumni</span>
-          </a>
+    <header className="w-full fixed top-0 left-0 bg-white border-b border-[#F0E9D8] z-40">
+      <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-14">
+        <div className="flex items-center space-x-3">
+          <div className="rounded-full w-8 h-8 flex items-center justify-center border border-[#E6DAB2] bg-white text-[#CF9500] font-bold">DTE</div>
+          <div className="text-sm font-semibold">DTE Alumni</div>
+        </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Navigation */}
-            {isRegistered && (
-              <nav aria-label="Main navigation">
-                <ul className="flex items-center space-x-4 sm:space-x-6">
-                  <li>
-                    <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Home</a>
-                  </li>
-                  <li>
-                    <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Events</a>
-                  </li>
-                  <li>
-                    <a href="#" className="px-2 py-1 text-sm font-medium text-[#555555] hover:text-[#E7A700] transition-colors duration-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Directory</a>
-                  </li>
-                  <li>
-                    <a href="#" className="px-3 py-2 text-sm font-medium text-white bg-[#E7A700] rounded-md hover:bg-[#CF9500] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700]">Profile</a>
-                  </li>
-                </ul>
-              </nav>
-            )}
-            
-            {isLoggedIn && (
-               <button 
-                 onClick={onLogout} 
-                 className="px-3 py-2 text-sm font-medium text-[#555555] hover:text-[#2E2E2E] transition-colors duration-200"
-               >
+        <nav className="flex items-center space-x-4">
+          {/* Show Admin Dashboard link only if user is admin */}
+          {isAdminView && onAdminClick && (
+            <button
+              onClick={onAdminClick}
+              className="text-sm font-medium px-3 py-1 rounded-md bg-[#FFF8E5] border border-[#E7A700] text-[#CF9500] hover:bg-[#FFF2D0]"
+              title="Admin Dashboard"
+            >
+              Admin Dashboard
+            </button>
+          )}
+
+          {isLoggedIn ? (
+            <>
+              <button
+                onClick={onLogout}
+                className="text-sm font-medium px-3 py-1 rounded-md bg-white border border-gray-200 hover:bg-gray-50"
+              >
                 Logout
               </button>
-            )}
-          </div>
-        </div>
+            </>
+          ) : (
+            <div className="text-sm text-gray-600">Not signed in</div>
+          )}
+        </nav>
       </div>
     </header>
   );
 };
 
 export default Header;
+
