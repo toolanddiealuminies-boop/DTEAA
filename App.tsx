@@ -386,7 +386,13 @@ const App: React.FC = () => {
 
   return (
     <>
-      <Header isRegistered={isRegistered} isLoggedIn={!!session} onLogout={handleLogout} />
+      <Header
+  isRegistered={isRegistered}
+  isLoggedIn={!!session}
+  onLogout={handleLogout}
+  isAdminView={isAdminView}
+  onAdminClick={() => setIsAdminView(true)}
+/>
       <div className="flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-24 font-sans">
         <div className="w-full max-w-4xl mx-auto">
           <header className="text-center mb-8 animate-fade-in">
