@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { UserData, EmployeeExperience, EntrepreneurExperience, OpenToWorkDetails } from '../types';
 
 type FormErrors = {
@@ -125,6 +125,24 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
     const [errors, setErrors] = useState<FormErrors>({});
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    // Hydrate from localStorage if userData is empty (defensive).
+    useEffect(() => {
+        try {
+            const hasName = Boolean(userData && userData.personal && userData.personal.firstName);
+            if (!hasName && typeof window !== 'undefined') {
+                const saved = localStorage.getItem('alumniForm');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed) {
+                        setUserData(parsed);
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore parse errors
+            // console.warn('hydration failed', e);
+        }
+    }, []);
 
     const validateField = useCallback((section: keyof UserData, field: string, value: any, allData: UserData = userData): string => {
         const requiredMsg = "This field is required.";
@@ -295,8 +313,16 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
         setErrors(newErrors);
 
         if (isValid) {
-            setCurrentStep(Math.min(5, currentStep + 1));
-        }
+    // Persist the form to localStorage so Review / Payment can read it if memory is lost
+    try {
+      localStorage.setItem('alumniForm', JSON.stringify(userData));
+    } catch (e) {
+      // ignore localStorage errors
+      console.warn('Could not persist form to localStorage', e);
+    }
+    setCurrentStep(Math.min(5, currentStep + 1));
+}
+
     };
 
 
@@ -400,14 +426,134 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         </div>
                     </div>
                 );
-            case 4: // Review
-                return (
-                    <div>
-                         <h3 className="text-xl font-semibold text-[#2E2E2E] mb-4">Review Your Information</h3>
-                         <p className="text-sm text-[#555555] mb-6">Please review all the information you have provided. You can go back to edit any details before proceeding to payment.</p>
-                         {/* A summary view could be displayed here. For simplicity, we just show a confirmation message. */}
-                    </div>
-                );
+           case 4: // Review
+  return (
+    <div className="space-y-6">
+      <h3 className="text-xl font-semibold text-[#2E2E2E]">Review Your Information</h3>
+      <p className="text-sm text-[#555555] mb-4">
+        Please review all the information you have provided. You can go back to edit any details before proceeding to payment.
+      </p>
+
+      {/* Personal Section */}
+      <section className="bg-white p-4 rounded border">
+        <div className="flex justify-between items-start">
+          <h4 className="font-semibold">Personal</h4>
+          <button
+            type="button"
+            className="text-sm underline"
+            onClick={() => setCurrentStep(1)}
+          >
+            Edit
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div><strong>First name:</strong> <div>{userData.personal.firstName || '—'}</div></div>
+          <div><strong>Last name:</strong> <div>{userData.personal.lastName || '—'}</div></div>
+          <div><strong>Year of pass out:</strong> <div>{userData.personal.passOutYear || '—'}</div></div>
+          <div><strong>DOB:</strong> <div>{userData.personal.dob || '—'}</div></div>
+          <div><strong>Blood group:</strong> <div>{userData.personal.bloodGroup || '—'}</div></div>
+          <div><strong>Highest qualification:</strong> <div>{userData.personal.highestQualification || '—'}</div></div>
+          <div><strong>Email:</strong> <div>{userData.personal.email || '—'}</div></div>
+          <div><strong>Alternate Email:</strong> <div>{userData.personal.altEmail || '—'}</div></div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section className="bg-white p-4 rounded border">
+        <div className="flex justify-between items-start">
+          <h4 className="font-semibold">Contact</h4>
+          <button type="button" className="text-sm underline" onClick={() => setCurrentStep(2)}>Edit</button>
+        </div>
+        <div className="mt-3 text-sm space-y-2">
+          <div><strong>Address:</strong> <div>{userData.contact.address || '—'}</div></div>
+          <div><strong>City:</strong> <div>{userData.contact.city || '—'}</div></div>
+          <div><strong>State:</strong> <div>{userData.contact.state || '—'}</div></div>
+          <div><strong>Pincode:</strong> <div>{userData.contact.pincode || '—'}</div></div>
+          <div><strong>Country:</strong> <div>{userData.contact.country || '—'}</div></div>
+          <div><strong>Mobile:</strong> <div>{userData.contact.mobile || '—'}</div></div>
+          <div><strong>Telephone:</strong> <div>{userData.contact.telephone || '—'}</div></div>
+        </div>
+      </section>
+
+      {/* Experience Section */}
+      <section className="bg-white p-4 rounded border">
+        <div className="flex justify-between items-start">
+          <h4 className="font-semibold">Experience</h4>
+          <button type="button" className="text-sm underline" onClick={() => setCurrentStep(3)}>Edit</button>
+        </div>
+        <div className="mt-3 text-sm space-y-3">
+          <div>
+            <strong>Open to work:</strong> <div>{userData.experience.isOpenToWork ? 'Yes' : 'No'}</div>
+          </div>
+
+          <div>
+            <strong>Employee Experience:</strong>
+            {userData.experience.employee && userData.experience.employee.length > 0 ? (
+              <ul className="list-disc ml-5">
+                {userData.experience.employee.map((e) => (
+                  <li key={e.id} className="mb-1">
+                    <div><strong>Company:</strong> {e.companyName || '—'}</div>
+                    <div><strong>Designation:</strong> {e.designation || '—'}</div>
+                    <div><strong>From:</strong> {e.startDate || '—'} <strong>To:</strong> {e.endDate || (e.isCurrentEmployer ? 'Present' : '—')}</div>
+                  </li>
+                ))}
+              </ul>
+            ) : <div>—</div>}
+          </div>
+
+          <div>
+            <strong>Entrepreneur Experience:</strong>
+            {userData.experience.entrepreneur && userData.experience.entrepreneur.length > 0 ? (
+              <ul className="list-disc ml-5">
+                {userData.experience.entrepreneur.map((e) => (
+                  <li key={e.id} className="mb-1">
+                    <div><strong>Company:</strong> {e.companyName || '—'}</div>
+                    <div><strong>Nature of business:</strong> {e.natureOfBusiness || '—'}</div>
+                    <div><strong>Address:</strong> {e.address || '—'}</div>
+                  </li>
+                ))}
+              </ul>
+            ) : <div>—</div>}
+          </div>
+
+          {userData.experience.isOpenToWork && (
+            <div className="mt-2">
+              <strong>Open to work details:</strong>
+              <div className="mt-1 text-sm">
+                <div><strong>Technical Skills</strong><div>{userData.experience.openToWorkDetails.technicalSkills || '—'}</div></div>
+                <div><strong>Certifications</strong><div>{userData.experience.openToWorkDetails.certifications || '—'}</div></div>
+                <div><strong>Soft Skills</strong><div>{userData.experience.openToWorkDetails.softSkills || '—'}</div></div>
+                <div><strong>Other</strong><div>{userData.experience.openToWorkDetails.other || '—'}</div></div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Footer Buttons */}
+      <div className="flex justify-between items-center mt-4">
+        <button type="button" className="px-4 py-2 border rounded" onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}>Back</button>
+        <div>
+          <button
+            type="button"
+            className="px-6 py-2 rounded bg-yellow-500 text-white shadow"
+            onClick={() => {
+              // persist and go to payment
+              try {
+                localStorage.setItem('alumniForm', JSON.stringify(userData));
+              } catch (e) {
+                // ignore
+              }
+              setCurrentStep(5);
+            }}
+          >
+            Proceed to Payment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
             case 5: // Payment
                  return (
                     <div>
