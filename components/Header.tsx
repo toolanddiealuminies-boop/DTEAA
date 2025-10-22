@@ -21,12 +21,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ isRegistered, isLoggedIn, onLogout, isAdminView, onAdminClick }) => {
   return (
     <header className="w-full fixed top-0 left-0 bg-white border-b border-[#F0E9D8] z-40">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-14">
-        <div className="flex items-center space-x-3">
-          <div className="rounded-full w-8 h-8 flex items-center justify-center border border-[#E6DAB2] bg-white text-[#CF9500] font-bold">DTE</div>
-          <div className="text-sm font-semibold">DTE Alumni</div>
-        </div>
-
+      <div className="max-w-6xl mx-auto flex items-center justify-end px-4 sm:px-6 lg:px-8 h-14">
         <nav className="flex items-center space-x-4">
           {/* Show Admin Dashboard link only if user is admin */}
           {isAdminView && onAdminClick && (

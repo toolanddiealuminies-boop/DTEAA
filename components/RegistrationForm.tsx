@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import type { UserData, EmployeeExperience, EntrepreneurExperience, OpenToWorkDetails } from '../types';
 import { supabase } from '../lib/supabaseClient'; // <--- new import
+import ProfilePhotoUpload from './ProfilePhotoUpload';
 
 type FormErrors = {
   [P in keyof UserData]?: UserData[P] extends object ? {
@@ -17,6 +18,15 @@ type FormErrors = {
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string, optional?: boolean, error?: string }> = ({ label, id, optional, error, ...props }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const isDate = props.type === 'date';
+    
+    // Handle date input focus to show date picker on desktop
+    const handleDateFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        if (isDate) {
+            e.target.showPicker?.();
+        }
+        props.onFocus?.(e);
+    };
+    
     return (
         <div className="relative pb-5">
             <label htmlFor={id} className="block text-sm font-medium text-[#555555] mb-1">
@@ -27,6 +37,7 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: str
                 ref={inputRef}
                 className={`w-full px-3 py-2 text-[#2E2E2E] bg-white border ${error ? 'border-red-500' : 'border-[#DDD2B5]'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E7A700] focus:border-transparent transition-all duration-200 ${isDate && !props.value ? 'text-gray-400' : ''}`}
                 {...props}
+                onFocus={handleDateFocus}
             />
             {error && <p className="mt-1 text-xs text-red-500 absolute bottom-0">{error}</p>}
         </div>
@@ -121,6 +132,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
     const [errors, setErrors] = useState<FormErrors>({});
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [showSpecialization, setShowSpecialization] = useState(!!userData.personal.highestQualification);
 
     // Hydrate from localStorage if userData is empty (defensive).
     useEffect(() => {
@@ -370,6 +382,22 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 return (
                     <div className="space-y-4">
                         <h3 className="text-xl font-semibold text-[#2E2E2E]">Personal Information</h3>
+                        
+                        {/* Profile Photo Upload */}
+                        <div className="flex justify-center mb-6">
+                            <ProfilePhotoUpload
+                                value={userData.personal.profilePhoto}
+                                onChange={(photoData) => setUserData(prev => ({
+                                    ...prev,
+                                    personal: {
+                                        ...prev.personal,
+                                        profilePhoto: photoData
+                                    }
+                                }))}
+                                error={errors.personal?.profilePhoto}
+                            />
+                        </div>
+                        
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                             <Input label="First Name" id="firstName" value={userData.personal.firstName} onChange={handleChange('personal', 'firstName')} error={errors.personal?.firstName} />
                             <Input label="Last Name" id="lastName" value={userData.personal.lastName} onChange={handleChange('personal', 'lastName')} error={errors.personal?.lastName} />
@@ -377,9 +405,49 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                             <Input label="Date of Birth" id="dob" type="date" value={userData.personal.dob} onChange={handleChange('personal', 'dob')} error={errors.personal?.dob} />
                             <Select label="Blood Group" id="bloodGroup" value={userData.personal.bloodGroup} onChange={handleChange('personal', 'bloodGroup')} error={errors.personal?.bloodGroup}>
                                 <option value="">Select...</option>
-                                <option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+                                <option>A+</option>
+                                <option>A-</option>
+                                <option>B+</option>
+                                <option>B-</option>
+                                <option>AB+</option>
+                                <option>AB-</option>
+                                <option>O+</option>
+                                <option>O-</option>
                             </Select>
-                            <Input label="Highest Qualification" id="highestQualification" value={userData.personal.highestQualification} onChange={handleChange('personal', 'highestQualification')} error={errors.personal?.highestQualification} />
+                            <Select label="Highest Qualification" id="highestQualification" value={userData.personal.highestQualification} onChange={(e) => {
+                                handleChange('personal', 'highestQualification')(e);
+                                setShowSpecialization(!!e.target.value);
+                                if (!e.target.value) {
+                                    setUserData(prev => ({
+                                        ...prev,
+                                        personal: {
+                                            ...prev.personal,
+                                            specialization: ''
+                                        }
+                                    }));
+                                }
+                            }} error={errors.personal?.highestQualification}>
+                                <option value="">Select...</option>
+                                <option value="B.E">B.E</option>
+                                <option value="B.Tech">B.Tech</option>
+                                <option value="M.E">M.E</option>
+                                <option value="M.Tech">M.Tech</option>
+                                <option value="PhD">Ph.D</option>
+                                <option value="DTE">D.T.E</option>
+                                <option value="DME">D.M.E</option>
+                                <option value="Other">Other</option>
+                            </Select>
+                            {/* Specialization field - shows when qualification is selected */}
+                            {(showSpecialization || userData.personal.highestQualification) && (
+                                <Input 
+                                    label="Specialization" 
+                                    id="specialization" 
+                                    placeholder="e.g., Computer Science, Mechanical, etc." 
+                                    value={userData.personal.specialization} 
+                                    onChange={handleChange('personal', 'specialization')} 
+                                    error={errors.personal?.specialization} 
+                                />
+                            )}
                             {/* Email: disabled only when value exists */}
                             <div>
                                 <Input label="Email Address" id="email" type="email" value={userData.personal.email} onChange={handleChange('personal', 'email')} disabled={!!userData.personal.email} />
@@ -480,15 +548,31 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             Edit
           </button>
         </div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+        <div className="mt-3">
+          {/* Profile Photo Preview */}
+          {userData.personal.profilePhoto && (
+            <div className="flex justify-center mb-4">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#E7A700] bg-gray-100">
+                <img 
+                  src={userData.personal.profilePhoto} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
           <div><strong>First name:</strong> <div>{userData.personal.firstName || '—'}</div></div>
           <div><strong>Last name:</strong> <div>{userData.personal.lastName || '—'}</div></div>
           <div><strong>Year of pass out:</strong> <div>{userData.personal.passOutYear || '—'}</div></div>
           <div><strong>DOB:</strong> <div>{userData.personal.dob || '—'}</div></div>
           <div><strong>Blood group:</strong> <div>{userData.personal.bloodGroup || '—'}</div></div>
           <div><strong>Highest qualification:</strong> <div>{userData.personal.highestQualification || '—'}</div></div>
+          {userData.personal.specialization && <div><strong>Specialization:</strong> <div>{userData.personal.specialization}</div></div>}
           <div><strong>Email:</strong> <div>{userData.personal.email || '—'}</div></div>
           <div><strong>Alternate Email:</strong> <div>{userData.personal.altEmail || '—'}</div></div>
+          </div>
         </div>
       </section>
 
@@ -569,15 +653,111 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
 
             case 5: // Payment
                  return (
-                    <div>
-                        <h3 className="text-xl font-semibold text-[#2E2E2E] mb-2">Final Step: Payment</h3>
-                        <p className="text-sm text-[#555555] mb-6">Please complete the payment and upload the receipt to finalize your registration.</p>
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-xl font-semibold text-[#2E2E2E] mb-2">Final Step: Payment</h3>
+                            <p className="text-sm text-[#555555]">Complete the payment and upload the receipt to finalize your registration.</p>
+                        </div>
+                        
+                        {/* Fee Structure */}
+                        <div className="p-6 border rounded-lg bg-white shadow-sm">
+                            <h4 className="text-lg font-semibold text-[#2E2E2E] mb-4">Fee Structure</h4>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span className="text-[#555555]">Registration Fee (One Time)</span>
+                                    <span className="font-semibold text-[#2E2E2E]">₹ 100</span>
+                                </div>
+                                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span className="text-[#555555]">Annual Fee (Yearly)</span>
+                                    <span className="font-semibold text-[#2E2E2E]">₹ 600</span>
+                                </div>
+                                <div className="flex justify-between items-center py-3 border-t-2 border-[#E7A700]">
+                                    <span className="text-lg font-semibold text-[#2E2E2E]">Total Amount</span>
+                                    <span className="text-xl font-bold text-[#E7A700]">₹ 700</span>
+                                </div>
+                            </div>
+                            <div className="mt-4 p-3 bg-[#FFF8E5] border border-[#E7A700] rounded-md">
+                                <p className="text-sm text-[#CF9500] font-medium">
+                                    💡 Please proceed with the payment of ₹700 using any of the methods below and upload the receipt.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Payment Methods */}
                         <div className="p-6 border rounded-lg bg-[#F7F4EF]">
-                            {/* Payment details would go here */}
-                            <p className="font-semibold mb-4">Upload your payment receipt:</p>
-                            <input type="file" accept="image/*" onChange={handleReceiptUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E7A700]/20 file:text-[#CF9500] hover:file:bg-[#E7A700]/30"/>
-                            {errors.paymentReceipt && <p className="mt-2 text-xs text-red-500">{errors.paymentReceipt}</p>}
-                            {receiptPreview && <img src={receiptPreview} alt="Receipt Preview" className="mt-4 rounded-lg max-h-60 border" />}
+                            <h4 className="text-lg font-semibold text-[#2E2E2E] mb-4">Payment Methods</h4>
+                            
+                            {/* UPI Payment */}
+                            <div className="mb-6">
+                                <h5 className="font-semibold text-[#555555] mb-2 flex items-center">
+                                    <svg className="w-5 h-5 mr-2 text-[#E7A700]" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" />
+                                    </svg>
+                                    UPI Payment
+                                </h5>
+                                <div className="bg-white p-4 rounded-md border">
+                                    <p className="text-sm text-[#555555] mb-1">UPI ID:</p>
+                                    <p className="text-lg font-mono font-semibold text-[#2E2E2E] bg-gray-50 p-2 rounded border select-all">
+                                        dteaa@okokicic.com
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* Bank Transfer */}
+                            <div className="mb-6">
+                                <h5 className="font-semibold text-[#555555] mb-2 flex items-center">
+                                    <svg className="w-5 h-5 mr-2 text-[#E7A700]" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v2H4V6zm0 4h12v2H4v-2z" />
+                                    </svg>
+                                    Bank Transfer
+                                </h5>
+                                <div className="bg-white p-4 rounded-md border space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-sm text-[#555555] mb-1">Account Number:</p>
+                                            <p className="font-mono font-semibold text-[#2E2E2E] bg-gray-50 p-2 rounded border select-all">
+                                                1234567890
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-[#555555] mb-1">IFSC Code:</p>
+                                            <p className="font-mono font-semibold text-[#2E2E2E] bg-gray-50 p-2 rounded border select-all">
+                                                HDFC0001234
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-[#555555] mb-1">Bank Name:</p>
+                                        <p className="font-semibold text-[#2E2E2E]">HDFC Bank</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-[#555555] mb-1">Account Holder:</p>
+                                        <p className="font-semibold text-[#2E2E2E]">Dindigul Tool Engineering Alumni Association</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Receipt Upload */}
+                            <div>
+                                <h5 className="font-semibold text-[#555555] mb-2">Upload Payment Receipt</h5>
+                                <div className="bg-white p-4 rounded-md border">
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handleReceiptUpload} 
+                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E7A700]/20 file:text-[#CF9500] hover:file:bg-[#E7A700]/30"
+                                    />
+                                    {errors.paymentReceipt && <p className="mt-2 text-xs text-red-500">{errors.paymentReceipt}</p>}
+                                    {receiptPreview && (
+                                        <div className="mt-4">
+                                            <img src={receiptPreview} alt="Receipt Preview" className="rounded-lg max-h-60 border shadow-sm" />
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-[#888888] mt-2">
+                                        Please upload a clear image of your payment receipt (PNG, JPG formats supported)
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );

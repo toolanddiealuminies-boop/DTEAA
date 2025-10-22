@@ -42,6 +42,8 @@ export interface UserData {
     email: string;
     altEmail: string;
     highestQualification: string;
+    specialization: string;
+    profilePhoto: string; // Base64 encoded image data
   };
   contact: {
     address: string;

@@ -24,6 +24,8 @@ const initialUserData: UserData = {
     email: '',
     altEmail: '',
     highestQualification: '',
+    specialization: '',
+    profilePhoto: '',
   },
   contact: {
     address: '',
@@ -57,6 +59,7 @@ const App: React.FC = () => {
 
   const [registrationFormData, setRegistrationFormData] = useState<UserData>(initialUserData);
   const [currentStep, setCurrentStep] = useState(1);
+  const [showVerificationNotification, setShowVerificationNotification] = useState(false);
 
   // fetch profile by user id and update local state
   const fetchUserProfile = async (userId: string) => {
@@ -78,15 +81,21 @@ const App: React.FC = () => {
         alumniId: (data.alumni_id ?? (data.alumniId as any)) || '',
         status: data.status || 'pending',
         paymentReceipt: data.payment_receipt ?? (data.paymentReceipt as any) ?? '',
-        personal: data.personal ?? {
-          firstName: '',
-          lastName: '',
-          passOutYear: '',
-          dob: '',
-          bloodGroup: '',
-          email: '',
-          altEmail: '',
-          highestQualification: '',
+        personal: {
+          ...(data.personal ?? {
+            firstName: '',
+            lastName: '',
+            passOutYear: '',
+            dob: '',
+            bloodGroup: '',
+            email: '',
+            altEmail: '',
+            highestQualification: '',
+            specialization: '',
+            profilePhoto: '',
+          }),
+          // Override with the profile_photo URL from the database if it exists
+          profilePhoto: data.profile_photo || data.personal?.profilePhoto || '',
         },
         contact: data.contact ?? {
           address: '',
@@ -146,6 +155,7 @@ const App: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     let subscription: any = null;
+    let profileSubscription: any = null;
 
     const hydrateFromLocal = () => {
       try {
@@ -188,6 +198,8 @@ const App: React.FC = () => {
             setSession(s);
             if (s) {
               await fetchUserProfile(s.user.id);
+              // Setup real-time subscription for this user
+              setupProfileSubscription(s.user.id);
             } else {
               // not logged in; ensure app shows login
               setUserData(null);
@@ -204,6 +216,8 @@ const App: React.FC = () => {
             if (user) {
               setSession({ user } as Session);
               await fetchUserProfile(user.id);
+              // Setup real-time subscription for this user
+              setupProfileSubscription(user.id);
             } else {
               setSession(null);
             }
@@ -228,11 +242,22 @@ const App: React.FC = () => {
         if (s && s.user?.id) {
           // on sign-in
           fetchUserProfile(s.user.id);
+          // Setup real-time subscription for this user
+          setupProfileSubscription(s.user.id);
         } else {
           // sign-out
           setUserData(null);
           setIsRegistered(false);
           setIsAdminView(false);
+          // Clean up profile subscription
+          if (profileSubscription) {
+            try {
+              supabase.removeChannel(profileSubscription);
+              profileSubscription = null;
+            } catch (e) {
+              console.warn('Failed to cleanup profile subscription:', e);
+            }
+          }
         }
       });
 
@@ -242,6 +267,88 @@ const App: React.FC = () => {
       console.error('onAuthStateChange subscribe failed', err);
     }
 
+    // Setup real-time profile updates subscription
+    const setupProfileSubscription = (userId: string) => {
+      try {
+        profileSubscription = supabase
+          .channel('profile-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${userId}`
+            },
+            (payload) => {
+              if (!mounted) return;
+              console.log('Profile updated:', payload);
+              
+              // Update userData with the new data
+              const newData = payload.new;
+              if (newData) {
+                const mapped: UserData = {
+                  id: newData.id,
+                  role: newData.role || 'user',
+                  alumniId: newData.alumni_id || '',
+                  status: newData.status || 'pending',
+                  paymentReceipt: newData.payment_receipt || '',
+                  personal: {
+                    ...(newData.personal ?? {
+                      firstName: '',
+                      lastName: '',
+                      passOutYear: '',
+                      dob: '',
+                      bloodGroup: '',
+                      email: '',
+                      altEmail: '',
+                      highestQualification: '',
+                      specialization: '',
+                      profilePhoto: '',
+                    }),
+                    profilePhoto: newData.profile_photo || newData.personal?.profilePhoto || '',
+                  },
+                  contact: newData.contact ?? {
+                    address: '',
+                    city: '',
+                    state: '',
+                    pincode: '',
+                    country: '',
+                    mobile: '',
+                    telephone: '',
+                  },
+                  experience: newData.experience ?? {
+                    employee: [],
+                    entrepreneur: [],
+                    isOpenToWork: false,
+                    openToWorkDetails: {
+                      technicalSkills: '',
+                      certifications: '',
+                      softSkills: '',
+                      other: '',
+                    },
+                  },
+                };
+                
+                setUserData(mapped);
+                
+                // Show notification if status changed to verified
+                if (newData.status === 'verified' && userData?.status !== 'verified') {
+                  setShowVerificationNotification(true);
+                  // Auto-hide notification after 5 seconds
+                  setTimeout(() => {
+                    setShowVerificationNotification(false);
+                  }, 5000);
+                }
+              }
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.error('Profile subscription failed', err);
+      }
+    };
+
     return () => {
       mounted = false;
       try {
@@ -250,6 +357,15 @@ const App: React.FC = () => {
         else if (typeof subscription === 'function') subscription(); // in very old versions
       } catch (e) {
         // ignore unsubscribe errors
+      }
+      
+      // Clean up profile subscription
+      if (profileSubscription) {
+        try {
+          supabase.removeChannel(profileSubscription);
+        } catch (e) {
+          console.warn('Failed to cleanup profile subscription:', e);
+        }
       }
     };
     // Run once on mount. We intentionally omit fetchUserProfile from deps to avoid resubscribing.
@@ -310,6 +426,38 @@ const App: React.FC = () => {
       alert("Year of Pass Out is required to generate an ID.");
       setCurrentStep(1);
       return;
+    }
+
+    let profilePhotoUrl = '';
+    
+    // Upload profile photo if exists
+    if (registrationFormData.personal.profilePhoto && registrationFormData.personal.profilePhoto.startsWith('data:')) {
+      try {
+        // Convert base64 to blob
+        const response = await fetch(registrationFormData.personal.profilePhoto);
+        const blob = await response.blob();
+        
+        // Upload to Supabase storage
+        const photoFileName = `${session.user.id}/profile_${Date.now()}.jpg`;
+        const { error: photoUploadError } = await supabase.storage
+          .from('photos')
+          .upload(photoFileName, blob, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+        
+        if (photoUploadError) {
+          console.warn('Failed to upload profile photo:', photoUploadError);
+          // Don't fail the registration, just warn
+        } else {
+          // Get public URL for the uploaded photo
+          const { data: photoUrlData } = supabase.storage.from('photos').getPublicUrl(photoFileName);
+          profilePhotoUrl = photoUrlData?.publicUrl || '';
+        }
+      } catch (error) {
+        console.warn('Error processing profile photo:', error);
+        // Don't fail registration for photo upload issues
+      }
     }
 
     // upload receipt
@@ -375,7 +523,11 @@ const App: React.FC = () => {
         id: session.user.id,
         alumni_id: alumniId,
         payment_receipt: publicUrl,
-        personal: registrationFormData.personal,
+        profile_photo: profilePhotoUrl,
+        personal: {
+          ...registrationFormData.personal,
+          profilePhoto: profilePhotoUrl // Update the personal object with the URL
+        },
         contact: registrationFormData.contact,
         experience: registrationFormData.experience
       };
@@ -494,6 +646,29 @@ const App: React.FC = () => {
         isAdminView={isAdminView}
         onAdminClick={() => setIsAdminView(true)}
       />
+      
+      {/* Verification Notification */}
+      {showVerificationNotification && (
+        <div className="fixed top-20 right-4 z-50 animate-slide-in-right">
+          <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="font-semibold">Congratulations! 🎉</p>
+              <p className="text-sm">You have been verified. Your ID card is now available!</p>
+            </div>
+            <button 
+              onClick={() => setShowVerificationNotification(false)}
+              className="ml-4 text-white hover:text-gray-200"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
       
       <div className="flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-24 font-sans min-h-screen">
         <div className="w-full max-w-4xl mx-auto mt-8">
