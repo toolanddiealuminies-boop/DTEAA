@@ -584,12 +584,21 @@ const App: React.FC = () => {
     const MAX_ATTEMPTS = 5;
     let attempt = 0;
     let insertedData: any = null;
+    let retryOffset = 0; // Track retry offset to avoid regenerating same ID
     
     while (attempt < MAX_ATTEMPTS) {
       attempt += 1;
       console.log(`Database insert attempt #${attempt}/${MAX_ATTEMPTS}`);
       
-      const alumniId = await computeNextAlumniId();
+      const baseAlumniId = await computeNextAlumniId();
+      
+      // On retry, add offset to avoid duplicate
+      const parts = baseAlumniId.split('-');
+      const baseNum = parseInt(parts[2], 10) || 1;
+      const adjustedNum = baseNum + retryOffset;
+      const alumniId = `${parts[0]}-${parts[1]}-${String(adjustedNum).padStart(4, '0')}`;
+      
+      console.log(`Attempting with alumni_id: ${alumniId} (base: ${baseAlumniId}, offset: ${retryOffset})`);
 
       // Prepare row to insert (use snake_case columns to match DB)
       // IMPORTANT: enforce the current authenticated uid here to satisfy RLS
@@ -645,7 +654,8 @@ const App: React.FC = () => {
         const isUniqueConflict = insertError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
         
         if (isUniqueConflict && attempt < MAX_ATTEMPTS) {
-          console.log(`Unique constraint violation detected. Retrying after delay...`);
+          console.log(`Unique constraint violation detected. Incrementing offset and retrying...`);
+          retryOffset++; // Increment offset for next attempt
           // brief wait then retry
           await new Promise(r => setTimeout(r, 200 * attempt));
           continue;
