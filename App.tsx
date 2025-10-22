@@ -536,36 +536,45 @@ const App: React.FC = () => {
 
     // Helper to compute next sequential number for the year
     const computeNextAlumniId = async (): Promise<string> => {
-      // Find the latest alumni_id for this year
+      // Find ALL alumni_ids for this year and get the max sequence number
       const likePattern = `DTEAA-${year}-%`;
       console.log('Searching for existing IDs with pattern:', likePattern);
       
       const res = await supabase
         .from('profiles')
         .select('alumni_id')
-        .ilike('alumni_id', likePattern)
-        .order('alumni_id', { ascending: false })
-        .limit(1);
+        .ilike('alumni_id', likePattern);
 
       if (res.error) {
         console.error('Error finding latest alumni_id:', res.error);
         return `DTEAA-${year}-0001`;
       }
 
-      const row = res.data && res.data[0];
-      if (!row || !row.alumni_id) {
+      // Parse all IDs and find the maximum sequence number
+      let maxSequence = 0;
+      
+      if (res.data && res.data.length > 0) {
+        console.log(`Found ${res.data.length} existing IDs for year ${year}`);
+        
+        res.data.forEach((row) => {
+          if (row.alumni_id) {
+            // Extract the last part (sequence number)
+            const parts = row.alumni_id.split('-');
+            const last = parts[parts.length - 1];
+            const num = parseInt(last, 10);
+            if (Number.isFinite(num) && num > maxSequence) {
+              maxSequence = num;
+            }
+          }
+        });
+        
+        console.log('Max existing sequence number:', maxSequence);
+      } else {
         console.log('No existing IDs found for year, starting with 0001');
-        return `DTEAA-${year}-0001`;
       }
 
-      console.log('Latest existing alumni_id:', row.alumni_id);
-      
-      // parse last 4 digits and increment
-      const parts = row.alumni_id.split('-');
-      const last = parts[parts.length - 1];
-      const num = parseInt(last, 10);
-      const next = Number.isFinite(num) ? num + 1 : 1;
-      const newId = `DTEAA-${year}-${String(next).padStart(4, '0')}`;
+      const nextSequence = maxSequence + 1;
+      const newId = `DTEAA-${year}-${String(nextSequence).padStart(4, '0')}`;
       console.log('Generated new alumni_id:', newId);
       return newId;
     };
