@@ -421,24 +421,52 @@ const App: React.FC = () => {
 
   // registration handler (upload receipt + insert profile)
   const handleRegister = async (receiptFile: File) => {
-    if (!session?.user) return alert("You must be logged in to register.");
+    console.log('=== REGISTRATION STARTED ===');
+    console.log('User ID:', session?.user?.id);
+    console.log('User Email:', session?.user?.email);
+    console.log('Receipt File:', receiptFile?.name, receiptFile?.size, 'bytes');
+    
+    if (!session?.user) {
+      console.error('REGISTRATION FAILED: No session user');
+      return alert("You must be logged in to register.");
+    }
+    
     if (!registrationFormData.personal.passOutYear) {
+      console.error('REGISTRATION FAILED: Missing pass out year');
       alert("Year of Pass Out is required to generate an ID.");
       setCurrentStep(1);
       return;
     }
 
+    console.log('Registration Form Data:', JSON.stringify({
+      personal: {
+        ...registrationFormData.personal,
+        profilePhoto: registrationFormData.personal.profilePhoto ? '[BASE64_DATA]' : 'none'
+      },
+      contact: registrationFormData.contact,
+      experience: {
+        ...registrationFormData.experience,
+        employee: registrationFormData.experience.employee.length + ' entries',
+        entrepreneur: registrationFormData.experience.entrepreneur.length + ' entries'
+      }
+    }, null, 2));
+
+    try {
     let profilePhotoUrl = '';
     
     // Upload profile photo if exists
     if (registrationFormData.personal.profilePhoto && registrationFormData.personal.profilePhoto.startsWith('data:')) {
+      console.log('>>> Step 1: Uploading profile photo...');
       try {
         // Convert base64 to blob
         const response = await fetch(registrationFormData.personal.profilePhoto);
         const blob = await response.blob();
+        console.log('Profile photo blob size:', blob.size, 'bytes, type:', blob.type);
         
         // Upload to Supabase storage
         const photoFileName = `${session.user.id}/profile_${Date.now()}.jpg`;
+        console.log('Uploading to photos bucket:', photoFileName);
+        
         const { error: photoUploadError } = await supabase.storage
           .from('photos')
           .upload(photoFileName, blob, {
@@ -447,35 +475,61 @@ const App: React.FC = () => {
           });
         
         if (photoUploadError) {
-          console.warn('Failed to upload profile photo:', photoUploadError);
+          console.error('PHOTO UPLOAD FAILED:', {
+            error: photoUploadError,
+            message: photoUploadError.message,
+            statusCode: (photoUploadError as any).statusCode,
+            details: JSON.stringify(photoUploadError)
+          });
           // Don't fail the registration, just warn
         } else {
           // Get public URL for the uploaded photo
           const { data: photoUrlData } = supabase.storage.from('photos').getPublicUrl(photoFileName);
           profilePhotoUrl = photoUrlData?.publicUrl || '';
+          console.log('✓ Profile photo uploaded successfully:', profilePhotoUrl);
         }
       } catch (error) {
-        console.warn('Error processing profile photo:', error);
+        console.error('PHOTO PROCESSING ERROR:', error);
         // Don't fail registration for photo upload issues
       }
+    } else {
+      console.log('>>> Step 1: No profile photo to upload');
     }
 
     // upload receipt
+    console.log('>>> Step 2: Uploading payment receipt...');
     const fileExt = receiptFile.name.split('.').pop();
     const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+    console.log('Receipt file name:', fileName, 'extension:', fileExt);
+    
     const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, receiptFile);
 
     if (uploadError) {
+      console.error('RECEIPT UPLOAD FAILED:', {
+        error: uploadError,
+        message: uploadError.message,
+        statusCode: (uploadError as any).statusCode,
+        fileName: fileName,
+        fileSize: receiptFile.size,
+        details: JSON.stringify(uploadError)
+      });
       alert('Failed to upload payment receipt. Please try again.');
       return;
     }
 
+    console.log('✓ Receipt uploaded successfully');
+    
     // Use public url (works if bucket is public)
     const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
     const publicUrl = urlData?.publicUrl || '';
+    console.log('Receipt public URL:', publicUrl);
 
     const year = registrationFormData.personal.passOutYear;
+    console.log('>>> Step 3: Validating year and generating Alumni ID...');
+    console.log('Pass out year:', year);
+    
     if (!/^\d{4}$/.test(year)) {
+      console.error('INVALID YEAR FORMAT:', year);
       alert('Invalid pass out year.');
       return;
     }
@@ -484,6 +538,8 @@ const App: React.FC = () => {
     const computeNextAlumniId = async (): Promise<string> => {
       // Find the latest alumni_id for this year
       const likePattern = `DTEAA-${year}-%`;
+      console.log('Searching for existing IDs with pattern:', likePattern);
+      
       const res = await supabase
         .from('profiles')
         .select('alumni_id')
@@ -492,29 +548,38 @@ const App: React.FC = () => {
         .limit(1);
 
       if (res.error) {
-        console.warn('Error finding latest alumni_id:', res.error);
+        console.error('Error finding latest alumni_id:', res.error);
         return `DTEAA-${year}-0001`;
       }
 
       const row = res.data && res.data[0];
       if (!row || !row.alumni_id) {
+        console.log('No existing IDs found for year, starting with 0001');
         return `DTEAA-${year}-0001`;
       }
 
+      console.log('Latest existing alumni_id:', row.alumni_id);
+      
       // parse last 4 digits and increment
       const parts = row.alumni_id.split('-');
       const last = parts[parts.length - 1];
       const num = parseInt(last, 10);
       const next = Number.isFinite(num) ? num + 1 : 1;
-      return `DTEAA-${year}-${String(next).padStart(4, '0')}`;
+      const newId = `DTEAA-${year}-${String(next).padStart(4, '0')}`;
+      console.log('Generated new alumni_id:', newId);
+      return newId;
     };
 
     // Try inserting with retry in case of unique constraint conflict
+    console.log('>>> Step 4: Inserting profile into database...');
     const MAX_ATTEMPTS = 5;
     let attempt = 0;
     let insertedData: any = null;
+    
     while (attempt < MAX_ATTEMPTS) {
       attempt += 1;
+      console.log(`Database insert attempt #${attempt}/${MAX_ATTEMPTS}`);
+      
       const alumniId = await computeNextAlumniId();
 
       // Prepare row to insert (use snake_case columns to match DB)
@@ -532,6 +597,20 @@ const App: React.FC = () => {
         experience: registrationFormData.experience
       };
 
+      console.log('Inserting profile row:', {
+        id: profileRow.id,
+        alumni_id: profileRow.alumni_id,
+        payment_receipt: profileRow.payment_receipt ? 'URL_PROVIDED' : 'NO_URL',
+        profile_photo: profileRow.profile_photo ? 'URL_PROVIDED' : 'NO_URL',
+        personal_fields: Object.keys(profileRow.personal),
+        contact_fields: Object.keys(profileRow.contact),
+        experience_summary: {
+          employee_count: profileRow.experience.employee.length,
+          entrepreneur_count: profileRow.experience.entrepreneur.length,
+          isOpenToWork: profileRow.experience.isOpenToWork
+        }
+      });
+
       const { data: insertRes, error: insertError } = await supabase
         .from('profiles')
         .insert(profileRow)
@@ -541,32 +620,64 @@ const App: React.FC = () => {
       if (insertError) {
         // If conflict on unique alumni_id, retry (someone else might have created the same id just now)
         const msg = (insertError as any).message || JSON.stringify(insertError);
-        console.warn(`Insert attempt #${attempt} failed: ${msg}`);
+        
+        console.error(`DATABASE INSERT FAILED - Attempt #${attempt}:`, {
+          error: insertError,
+          errorCode: insertError.code,
+          errorMessage: insertError.message,
+          errorDetails: (insertError as any).details,
+          errorHint: (insertError as any).hint,
+          statusCode: (insertError as any).statusCode,
+          fullError: JSON.stringify(insertError, null, 2)
+        });
 
         // detect unique constraint violation (Postgres unique violation)
         // error code for unique constraint is usually "23505" for Postgres; supabase-js error shape may vary
         const isUniqueConflict = insertError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
+        
         if (isUniqueConflict && attempt < MAX_ATTEMPTS) {
+          console.log(`Unique constraint violation detected. Retrying after delay...`);
           // brief wait then retry
           await new Promise(r => setTimeout(r, 200 * attempt));
           continue;
         } else {
-          alert('Failed to save your registration. Please try again later.');
+          console.error('REGISTRATION FAILED - Final error after all attempts or non-retryable error');
+          console.error('Error type:', isUniqueConflict ? 'UNIQUE_CONSTRAINT' : 'OTHER');
+          console.error('Possible causes:');
+          console.error('1. RLS (Row Level Security) policy blocking insert');
+          console.error('2. Missing required columns in database');
+          console.error('3. Data type mismatch');
+          console.error('4. User does not have INSERT permission');
+          console.error('5. Database constraint violation');
+          
+          alert(`Failed to save your registration. Error: ${insertError.message || 'Unknown error'}. Please contact support with this error code: ${insertError.code || 'NO_CODE'}`);
+          
           // cleanup uploaded file if desired
           try {
+            console.log('Cleaning up uploaded receipt...');
             await supabase.storage.from('receipts').remove([fileName]);
-          } catch (e) { /* ignore */ }
+            console.log('✓ Receipt cleanup successful');
+          } catch (e) {
+            console.error('Receipt cleanup failed:', e);
+          }
           return;
         }
       }
 
       if (insertRes) {
+        console.log('✓ Profile inserted successfully!');
+        console.log('Inserted data:', {
+          id: insertRes.id,
+          alumni_id: insertRes.alumni_id,
+          status: insertRes.status
+        });
         insertedData = insertRes;
         break;
       }
     }
 
     if (insertedData) {
+      console.log('>>> Step 5: Finalizing registration...');
       // Map DB fields to frontend expected shape (same as fetchUserProfile)
       const mapped: UserData = {
         id: insertedData.id,
@@ -581,12 +692,34 @@ const App: React.FC = () => {
 
       setUserData(mapped);
       setIsRegistered(true);
+      console.log('✓✓✓ REGISTRATION COMPLETED SUCCESSFULLY! ✓✓✓');
+      console.log('Alumni ID:', mapped.alumniId);
+      console.log('Status:', mapped.status);
+      console.log('=== END OF REGISTRATION ===');
     } else {
-      alert('Failed to save your registration after multiple attempts. Please try again.');
+      console.error('REGISTRATION FAILED: No data inserted after all attempts');
+      console.error('This should not happen - check the retry logic');
+      alert('Failed to save your registration after multiple attempts. Please try again or contact support.');
       // cleanup uploaded file
       try {
+        console.log('Cleaning up uploaded receipt...');
         await supabase.storage.from('receipts').remove([fileName]);
-      } catch (e) { /* ignore */ }
+        console.log('✓ Receipt cleanup successful');
+      } catch (e) {
+        console.error('Receipt cleanup failed:', e);
+      }
+      console.log('=== END OF REGISTRATION (FAILED) ===');
+    }
+    } catch (unexpectedError: any) {
+      console.error('!!! UNEXPECTED ERROR DURING REGISTRATION !!!');
+      console.error('Error type:', typeof unexpectedError);
+      console.error('Error name:', unexpectedError?.name);
+      console.error('Error message:', unexpectedError?.message);
+      console.error('Error stack:', unexpectedError?.stack);
+      console.error('Full error object:', unexpectedError);
+      
+      alert(`An unexpected error occurred during registration: ${unexpectedError?.message || 'Unknown error'}. Please check the console for details and contact support.`);
+      console.log('=== END OF REGISTRATION (UNEXPECTED ERROR) ===');
     }
   };
 
