@@ -536,7 +536,10 @@ const App: React.FC = () => {
 
     // Helper to compute next sequential number for the year using database function
     const computeNextAlumniId = async (): Promise<string> => {
-      console.log('Calling database function to generate alumni_id for year:', year);
+      console.log('═══════════════════════════════════════');
+      console.log('🔍 COMPUTING NEXT ALUMNI ID');
+      console.log('Year:', year);
+      console.log('═══════════════════════════════════════');
       
       // Call the database function that bypasses RLS to get the next ID
       const { data, error } = await supabase.rpc('get_next_alumni_id', {
@@ -544,31 +547,40 @@ const App: React.FC = () => {
       });
 
       if (error) {
-        console.error('Error calling get_next_alumni_id function:', error);
+        console.error('❌ Error calling get_next_alumni_id function:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.log('⚠️ Using fallback ID: DTEAA-' + year + '-0001');
         // Fallback to basic sequential if function fails
         return `DTEAA-${year}-0001`;
       }
 
       const nextId = data as string;
-      console.log('Generated new alumni_id from database function:', nextId);
+      console.log('✅ Database function returned:', nextId);
+      console.log('═══════════════════════════════════════');
       return nextId;
     };
 
     // Try inserting with retry in case of unique constraint conflict
     console.log('>>> Step 4: Inserting profile into database...');
-    const MAX_ATTEMPTS = 5;
+    const MAX_ATTEMPTS = 15;
     let attempt = 0;
     let insertedData: any = null;
     
     while (attempt < MAX_ATTEMPTS) {
       attempt += 1;
-      console.log(`Database insert attempt #${attempt}/${MAX_ATTEMPTS}`);
+      console.log('\n');
+      console.log('╔══════════════════════════════════════════════╗');
+      console.log(`║  DATABASE INSERT ATTEMPT #${attempt}/${MAX_ATTEMPTS}               ║`);
+      console.log('╚══════════════════════════════════════════════╝');
       
       // Get the next sequential alumni ID from database function
       // The function handles finding the correct next ID even on retries
       const alumniId = await computeNextAlumniId();
       
-      console.log(`Attempting with alumni_id: ${alumniId}`);
+      console.log('\n🎯 ATTEMPTING INSERT WITH:');
+      console.log('   Alumni ID:', alumniId);
+      console.log('   User ID:', session.user.id);
+      console.log('   Email:', session.user.email);
 
       // Prepare row to insert (use snake_case columns to match DB)
       // IMPORTANT: enforce the current authenticated uid here to satisfy RLS
@@ -599,6 +611,8 @@ const App: React.FC = () => {
         }
       });
 
+      console.log('\n📤 Sending insert request to database...');
+      
       const { data: insertRes, error: insertError } = await supabase
         .from('profiles')
         .insert(profileRow)
@@ -606,6 +620,7 @@ const App: React.FC = () => {
         .single();
 
       if (insertError) {
+        console.log('\n❌ INSERT FAILED');
         // If conflict on unique alumni_id, retry (someone else might have created the same id just now)
         const msg = (insertError as any).message || JSON.stringify(insertError);
         
@@ -624,7 +639,10 @@ const App: React.FC = () => {
         const isUniqueConflict = insertError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
         
         if (isUniqueConflict && attempt < MAX_ATTEMPTS) {
-          console.log(`Unique constraint violation detected. Retrying with fresh ID generation...`);
+          console.log('\n⚠️ UNIQUE CONSTRAINT VIOLATION');
+          console.log('The alumni_id', profileRow.alumni_id, 'already exists in the database');
+          console.log(`Waiting ${200 * attempt}ms before retry...`);
+          console.log('Will regenerate a fresh alumni_id on next attempt...');
           // brief wait then retry
           await new Promise(r => setTimeout(r, 200 * attempt));
           continue;
@@ -653,12 +671,14 @@ const App: React.FC = () => {
       }
 
       if (insertRes) {
-        console.log('✓ Profile inserted successfully!');
-        console.log('Inserted data:', {
-          id: insertRes.id,
-          alumni_id: insertRes.alumni_id,
-          status: insertRes.status
-        });
+        console.log('\n🎉 SUCCESS! Profile inserted successfully!');
+        console.log('═══════════════════════════════════════');
+        console.log('📋 FINAL INSERTED DATA:');
+        console.log('   User ID:', insertRes.id);
+        console.log('   Alumni ID:', insertRes.alumni_id);
+        console.log('   Status:', insertRes.status);
+        console.log('   Email:', insertRes.personal?.email || 'N/A');
+        console.log('═══════════════════════════════════════');
         insertedData = insertRes;
         break;
       }
