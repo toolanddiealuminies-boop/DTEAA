@@ -178,6 +178,88 @@ const App: React.FC = () => {
       }
     };
 
+    // Setup real-time profile updates subscription
+    const setupProfileSubscription = (userId: string) => {
+      try {
+        profileSubscription = supabase
+          .channel('profile-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${userId}`
+            },
+            (payload) => {
+              if (!mounted) return;
+              console.log('Profile updated:', payload);
+              
+              // Update userData with the new data
+              const newData = payload.new;
+              if (newData) {
+                const mapped: UserData = {
+                  id: newData.id,
+                  role: newData.role || 'user',
+                  alumniId: newData.alumni_id || '',
+                  status: newData.status || 'pending',
+                  paymentReceipt: newData.payment_receipt || '',
+                  personal: {
+                    ...(newData.personal ?? {
+                      firstName: '',
+                      lastName: '',
+                      passOutYear: '',
+                      dob: '',
+                      bloodGroup: '',
+                      email: '',
+                      altEmail: '',
+                      highestQualification: '',
+                      specialization: '',
+                      profilePhoto: '',
+                    }),
+                    profilePhoto: newData.profile_photo || newData.personal?.profilePhoto || '',
+                  },
+                  contact: newData.contact ?? {
+                    address: '',
+                    city: '',
+                    state: '',
+                    pincode: '',
+                    country: '',
+                    mobile: '',
+                    telephone: '',
+                  },
+                  experience: newData.experience ?? {
+                    employee: [],
+                    entrepreneur: [],
+                    isOpenToWork: false,
+                    openToWorkDetails: {
+                      technicalSkills: '',
+                      certifications: '',
+                      softSkills: '',
+                      other: '',
+                    },
+                  },
+                };
+                
+                setUserData(mapped);
+                
+                // Show notification if status changed to verified
+                if (newData.status === 'verified' && userData?.status !== 'verified') {
+                  setShowVerificationNotification(true);
+                  // Auto-hide notification after 5 seconds
+                  setTimeout(() => {
+                    setShowVerificationNotification(false);
+                  }, 5000);
+                }
+              }
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.error('Profile subscription failed', err);
+      }
+    };
+
     (async () => {
       try {
         // quick synchronous/local fallback - helpful for snappy UX
@@ -266,88 +348,6 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('onAuthStateChange subscribe failed', err);
     }
-
-    // Setup real-time profile updates subscription
-    const setupProfileSubscription = (userId: string) => {
-      try {
-        profileSubscription = supabase
-          .channel('profile-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'profiles',
-              filter: `id=eq.${userId}`
-            },
-            (payload) => {
-              if (!mounted) return;
-              console.log('Profile updated:', payload);
-              
-              // Update userData with the new data
-              const newData = payload.new;
-              if (newData) {
-                const mapped: UserData = {
-                  id: newData.id,
-                  role: newData.role || 'user',
-                  alumniId: newData.alumni_id || '',
-                  status: newData.status || 'pending',
-                  paymentReceipt: newData.payment_receipt || '',
-                  personal: {
-                    ...(newData.personal ?? {
-                      firstName: '',
-                      lastName: '',
-                      passOutYear: '',
-                      dob: '',
-                      bloodGroup: '',
-                      email: '',
-                      altEmail: '',
-                      highestQualification: '',
-                      specialization: '',
-                      profilePhoto: '',
-                    }),
-                    profilePhoto: newData.profile_photo || newData.personal?.profilePhoto || '',
-                  },
-                  contact: newData.contact ?? {
-                    address: '',
-                    city: '',
-                    state: '',
-                    pincode: '',
-                    country: '',
-                    mobile: '',
-                    telephone: '',
-                  },
-                  experience: newData.experience ?? {
-                    employee: [],
-                    entrepreneur: [],
-                    isOpenToWork: false,
-                    openToWorkDetails: {
-                      technicalSkills: '',
-                      certifications: '',
-                      softSkills: '',
-                      other: '',
-                    },
-                  },
-                };
-                
-                setUserData(mapped);
-                
-                // Show notification if status changed to verified
-                if (newData.status === 'verified' && userData?.status !== 'verified') {
-                  setShowVerificationNotification(true);
-                  // Auto-hide notification after 5 seconds
-                  setTimeout(() => {
-                    setShowVerificationNotification(false);
-                  }, 5000);
-                }
-              }
-            }
-          )
-          .subscribe();
-      } catch (err) {
-        console.error('Profile subscription failed', err);
-      }
-    };
 
     return () => {
       mounted = false;
@@ -534,49 +534,24 @@ const App: React.FC = () => {
       return;
     }
 
-    // Helper to compute next sequential number for the year
+    // Helper to compute next sequential number for the year using database function
     const computeNextAlumniId = async (): Promise<string> => {
-      // Find ALL alumni_ids for this year and get the max sequence number
-      const likePattern = `DTEAA-${year}-%`;
-      console.log('Searching for existing IDs with pattern:', likePattern);
+      console.log('Calling database function to generate alumni_id for year:', year);
       
-      const res = await supabase
-        .from('profiles')
-        .select('alumni_id')
-        .ilike('alumni_id', likePattern);
+      // Call the database function that bypasses RLS to get the next ID
+      const { data, error } = await supabase.rpc('get_next_alumni_id', {
+        pass_out_year: year
+      });
 
-      if (res.error) {
-        console.error('Error finding latest alumni_id:', res.error);
+      if (error) {
+        console.error('Error calling get_next_alumni_id function:', error);
+        // Fallback to basic sequential if function fails
         return `DTEAA-${year}-0001`;
       }
 
-      // Parse all IDs and find the maximum sequence number
-      let maxSequence = 0;
-      
-      if (res.data && res.data.length > 0) {
-        console.log(`Found ${res.data.length} existing IDs for year ${year}`);
-        
-        res.data.forEach((row) => {
-          if (row.alumni_id) {
-            // Extract the last part (sequence number)
-            const parts = row.alumni_id.split('-');
-            const last = parts[parts.length - 1];
-            const num = parseInt(last, 10);
-            if (Number.isFinite(num) && num > maxSequence) {
-              maxSequence = num;
-            }
-          }
-        });
-        
-        console.log('Max existing sequence number:', maxSequence);
-      } else {
-        console.log('No existing IDs found for year, starting with 0001');
-      }
-
-      const nextSequence = maxSequence + 1;
-      const newId = `DTEAA-${year}-${String(nextSequence).padStart(4, '0')}`;
-      console.log('Generated new alumni_id:', newId);
-      return newId;
+      const nextId = data as string;
+      console.log('Generated new alumni_id from database function:', nextId);
+      return nextId;
     };
 
     // Try inserting with retry in case of unique constraint conflict
