@@ -32,7 +32,8 @@ export interface UserData {
   id: string; // Corresponds to Supabase auth.users.id
   role: 'user' | 'admin';
   alumniId: string;
-  status: 'pending' | 'verified';
+  status: 'pending' | 'verified' | 'rejected';
+  rejectionComments?: string; // Comments explaining why the registration was rejected
   paymentReceipt: string; // Stores the public URL from Supabase Storage
   personal: {
     firstName: string;

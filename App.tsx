@@ -88,6 +88,7 @@ const App: React.FC = () => {
         role: (data.role as any) || 'user',
         alumniId: (data.alumni_id ?? (data.alumniId as any)) || '',
         status: data.status || 'pending',
+        rejectionComments: data.rejection_comments || '',
         paymentReceipt: data.payment_receipt ?? (data.paymentReceipt as any) ?? '',
         personal: {
           ...(data.personal ?? {
@@ -219,6 +220,7 @@ const App: React.FC = () => {
                   role: newData.role || 'user',
                   alumniId: newData.alumni_id || '',
                   status: newData.status || 'pending',
+                  rejectionComments: newData.rejection_comments || '',
                   paymentReceipt: newData.payment_receipt || '',
                   personal: {
                     ...(newData.personal ?? {
@@ -541,7 +543,7 @@ const App: React.FC = () => {
     console.log('Receipt public URL:', publicUrl);
 
     const year = registrationFormData.personal.passOutYear;
-    console.log('>>> Step 3: Validating year and generating Alumni ID...');
+    console.log('>>> Step 3: Validating year and checking if user exists...');
     console.log('Pass out year:', year);
     
     if (!/^\d{4}$/.test(year)) {
@@ -549,6 +551,17 @@ const App: React.FC = () => {
       alert('Invalid pass out year.');
       return;
     }
+
+    // Check if user already exists (e.g., rejected user resubmitting)
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id, alumni_id, status')
+      .eq('id', session.user.id)
+      .single();
+    
+    const isResubmission = existingProfile && existingProfile.status === 'rejected';
+    console.log('User exists:', !!existingProfile, 'Status:', existingProfile?.status);
+    console.log('Is resubmission:', isResubmission);
 
     // Helper to compute next sequential number for the year using database function
     const computeNextAlumniId = async (): Promise<string> => {
@@ -593,18 +606,21 @@ const App: React.FC = () => {
       // The function handles finding the correct next ID even on retries
       const alumniId = await computeNextAlumniId();
       
-      console.log('\n🎯 ATTEMPTING INSERT WITH:');
+      console.log('\n🎯 ATTEMPTING DATABASE OPERATION WITH:');
       console.log('   Alumni ID:', alumniId);
       console.log('   User ID:', session.user.id);
       console.log('   Email:', session.user.email);
+      console.log('   Is resubmission:', isResubmission);
 
-      // Prepare row to insert (use snake_case columns to match DB)
+      // Prepare row data (use snake_case columns to match DB)
       // IMPORTANT: enforce the current authenticated uid here to satisfy RLS
       const profileRow = {
         id: session.user.id,
-        alumni_id: alumniId,
+        alumni_id: isResubmission ? existingProfile.alumni_id : alumniId, // Keep existing alumni_id for resubmissions
         payment_receipt: publicUrl,
         profile_photo: profilePhotoUrl,
+        status: 'pending', // Reset status to pending for resubmissions
+        rejection_comments: null, // Clear rejection comments
         personal: {
           ...registrationFormData.personal,
           profilePhoto: profilePhotoUrl // Update the personal object with the URL
@@ -613,7 +629,7 @@ const App: React.FC = () => {
         experience: registrationFormData.experience
       };
 
-      console.log('Inserting profile row:', {
+      console.log('Profile row to save:', {
         id: profileRow.id,
         alumni_id: profileRow.alumni_id,
         payment_receipt: profileRow.payment_receipt ? 'URL_PROVIDED' : 'NO_URL',
@@ -627,20 +643,36 @@ const App: React.FC = () => {
         }
       });
 
-      console.log('\n📤 Sending insert request to database...');
+      console.log(`\n📤 Sending ${isResubmission ? 'UPDATE' : 'INSERT'} request to database...`);
       
-      const { data: insertRes, error: insertError } = await supabase
-        .from('profiles')
-        .insert(profileRow)
-        .select()
-        .single();
+      // Use UPDATE for resubmissions, INSERT for new users
+      let insertRes, insertError;
+      if (isResubmission) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(profileRow)
+          .eq('id', session.user.id)
+          .select()
+          .single();
+        insertRes = data;
+        insertError = error;
+      } else {
+        const { data, error } = await supabase
+          .from('profiles')
+          .insert(profileRow)
+          .select()
+          .single();
+        insertRes = data;
+        insertError = error;
+      }
 
       if (insertError) {
-        console.log('\n❌ INSERT FAILED');
+        console.log(`\n❌ ${isResubmission ? 'UPDATE' : 'INSERT'} FAILED`);
         // If conflict on unique alumni_id, retry (someone else might have created the same id just now)
         const msg = (insertError as any).message || JSON.stringify(insertError);
         
-        console.error(`DATABASE INSERT FAILED - Attempt #${attempt}:`, {
+        console.error(`DATABASE OPERATION FAILED - Attempt #${attempt}:`, {
+          operation: isResubmission ? 'UPDATE' : 'INSERT',
           error: insertError,
           errorCode: insertError.code,
           errorMessage: insertError.message,
@@ -654,7 +686,8 @@ const App: React.FC = () => {
         // error code for unique constraint is usually "23505" for Postgres; supabase-js error shape may vary
         const isUniqueConflict = insertError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
         
-        if (isUniqueConflict && attempt < MAX_ATTEMPTS) {
+        // Only retry on unique conflicts for new inserts (not resubmissions)
+        if (isUniqueConflict && !isResubmission && attempt < MAX_ATTEMPTS) {
           console.log('\n⚠️ UNIQUE CONSTRAINT VIOLATION');
           console.log('The alumni_id', profileRow.alumni_id, 'already exists in the database');
           console.log(`Waiting ${200 * attempt}ms before retry...`);
@@ -776,10 +809,54 @@ const App: React.FC = () => {
     }
   };
 
+  const handleReject = async (userId: string, comments: string) => {
+    if (userData?.role !== 'admin') return alert("Permission denied.");
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ 
+          status: 'rejected',
+          rejection_comments: comments
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Reject update error', error);
+        alert(`Failed to reject user ${userId}. (${error.message || error.details || 'unknown error'})`);
+        return;
+      }
+
+      // Refresh the list so AdminDashboard sees latest data
+      await fetchAllUsers();
+
+      alert(`User ${userId} has been rejected. They will see your comments when they log in.`);
+    } catch (err) {
+      console.error('handleReject error', err);
+      alert(`Failed to reject user ${userId}.`);
+    }
+  };
+
   const renderContent = () => {
     if (loading) return <div className="text-center p-12 text-lg font-medium text-[#555555]">Loading session...</div>;
-    if (isAdminView) return <AdminDashboard users={allUsers} onVerify={handleVerify} />;
+    if (isAdminView) return <AdminDashboard users={allUsers} onVerify={handleVerify} onReject={handleReject} />;
     if (!session) return <LoginPage />;
+    
+    // If user registration was rejected, show them the payment page with rejection comments
+    if (isRegistered && userData?.status === 'rejected') {
+      return (
+        <RegistrationForm
+          userData={userData}
+          setUserData={setUserData}
+          currentStep={5} // Go directly to payment step
+          setCurrentStep={setCurrentStep}
+          onRegister={handleRegister}
+        />
+      );
+    }
+    
     if (!isRegistered) {
       return (
         <RegistrationForm

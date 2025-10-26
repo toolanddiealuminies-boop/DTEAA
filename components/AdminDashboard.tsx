@@ -5,14 +5,19 @@ import type { UserData } from '../types';
 interface Props {
   users: UserData[];
   onVerify: (userId: string) => Promise<void>;
+  onReject: (userId: string, comments: string) => Promise<void>;
 }
 
 /**
  * AdminDashboard with search & filter and client-side debounce
  */
-const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
+const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => {
   const [selected, setSelected] = useState<UserData | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectUserId, setRejectUserId] = useState<string | null>(null);
+  const [rejectionComments, setRejectionComments] = useState('');
 
   // Search & filter state
   const [query, setQuery] = useState<string>('');
@@ -72,6 +77,36 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
       console.error('verify failed', err);
     } finally {
       setVerifying(null);
+    }
+  };
+
+  const openRejectModal = (userId: string) => {
+    setRejectUserId(userId);
+    setRejectionComments('');
+    setRejectModalOpen(true);
+  };
+
+  const handleReject = async () => {
+    if (!rejectUserId || !rejectionComments.trim()) {
+      alert('Please enter rejection comments');
+      return;
+    }
+    
+    setRejecting(rejectUserId);
+    try {
+      await onReject(rejectUserId, rejectionComments.trim());
+      setRejectModalOpen(false);
+      setRejectionComments('');
+      setRejectUserId(null);
+      // update selected if modal is open
+      if (selected && selected.id === rejectUserId) {
+        setSelected(prev => prev ? { ...prev, status: 'rejected', rejectionComments: rejectionComments.trim() } : prev);
+      }
+    } catch (err) {
+      console.error('reject failed', err);
+      alert('Failed to reject user. Please try again.');
+    } finally {
+      setRejecting(null);
     }
   };
 
@@ -182,8 +217,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  <div className="text-sm mr-4 text-right">
+                <div className="flex items-center space-x-2">
+                  <div className="text-sm mr-2 text-right">
                     <div className="text-xs text-gray-500">Payment Receipt:</div>
                     <div className={`text-sm ${user.payment_receipt ? 'text-green-700' : 'text-red-500'}`}>
                       {user.payment_receipt ? 'Uploaded' : 'Missing'}
@@ -191,10 +226,16 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
                   </div>
                   <button
                     onClick={() => handleVerify(user.id)}
-                    className={`px-4 py-2 rounded text-white ${verifying === user.id ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    className={`px-3 py-2 rounded text-white text-sm ${verifying === user.id ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
                     disabled={verifying === user.id}
                   >
-                    {verifying === user.id ? 'Approving...' : 'Verify & Approve'}
+                    {verifying === user.id ? 'Approving...' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => openRejectModal(user.id)}
+                    className="px-3 py-2 rounded text-white text-sm bg-red-600 hover:bg-red-700"
+                  >
+                    Reject
                   </button>
                 </div>
               </div>
@@ -411,15 +452,80 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
               </div>
               <div className="flex space-x-2">
                 {selected.status !== 'verified' && (
-                  <button
-                    onClick={() => handleVerify(selected.id)}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    {verifying === selected.id ? 'Approving...' : 'Verify & Approve'}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleVerify(selected.id)}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      {verifying === selected.id ? 'Approving...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => { openRejectModal(selected.id); setSelected(null); }}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Reject
+                    </button>
+                  </>
                 )}
                 <button onClick={() => setSelected(null)} className="px-3 py-2 border rounded">Close</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 relative">
+            <button
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              onClick={() => {
+                setRejectModalOpen(false);
+                setRejectionComments('');
+                setRejectUserId(null);
+              }}
+            >
+              ✕
+            </button>
+
+            <h3 className="text-xl font-semibold mb-4 text-red-600">Reject Registration</h3>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Please provide a reason for rejecting this registration. The user will see this message when they log in.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Rejection Comments <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectionComments}
+                onChange={(e) => setRejectionComments(e.target.value)}
+                placeholder="e.g., Payment receipt is unclear, please upload a clearer image..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setRejectionComments('');
+                  setRejectUserId(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={rejecting !== null || !rejectionComments.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {rejecting ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
             </div>
           </div>
         </div>

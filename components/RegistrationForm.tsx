@@ -884,6 +884,29 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                             <p className="text-sm text-[#555555]">Complete the payment and upload the receipt to finalize your registration.</p>
                         </div>
                         
+                        {/* Rejection Comments Alert */}
+                        {userData.status === 'rejected' && userData.rejectionComments && (
+                            <div className="p-4 border-l-4 border-red-500 bg-red-50 rounded-r-lg">
+                                <div className="flex items-start">
+                                    <svg className="w-6 h-6 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                        <h4 className="text-red-800 font-semibold mb-1">Registration Rejected</h4>
+                                        <p className="text-red-700 text-sm mb-2">
+                                            Your previous registration was rejected for the following reason:
+                                        </p>
+                                        <div className="bg-white p-3 rounded border border-red-200">
+                                            <p className="text-red-900 text-sm whitespace-pre-wrap">{userData.rejectionComments}</p>
+                                        </div>
+                                        <p className="text-red-700 text-sm mt-2">
+                                            Please address the issue and upload a new payment receipt below.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
                         {/* Fee Structure */}
                         <div className="p-6 border rounded-lg bg-white shadow-sm">
                             <h4 className="text-lg font-semibold text-[#2E2E2E] mb-4">Fee Structure</h4>
