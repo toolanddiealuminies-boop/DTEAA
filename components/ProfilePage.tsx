@@ -93,18 +93,36 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
          {/* Contact Information */}
         <section className="p-5 border rounded-lg bg-[#F7F4EF]">
           <h4 className="text-xl font-semibold text-[#2E2E2E] border-b pb-2 mb-4">Contact Information</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-             <div className="sm:col-span-2">
-                <p className="text-sm text-[#555555]">Address</p>
-                <p className="text-md font-medium text-[#2E2E2E]">{[
-                  userData.contact.address,
-                  userData.contact.city,
-                  userData.contact.state,
-                  userData.contact.country,
-                ].filter(Boolean).join(', ') || '—'}{userData.contact.pincode ? ` - ${userData.contact.pincode}` : ''}</p>
+          <div className="space-y-4">
+            {/* Present Address */}
+            <div>
+              <p className="text-sm font-semibold text-[#E7A700] mb-1">Present Address</p>
+              <p className="text-md font-medium text-[#2E2E2E]">{[
+                userData.contact.presentAddress?.city,
+                userData.contact.presentAddress?.state,
+                userData.contact.presentAddress?.country,
+              ].filter(Boolean).join(', ') || '—'}{userData.contact.presentAddress?.pincode ? ` - ${userData.contact.presentAddress.pincode}` : ''}</p>
             </div>
-            <DetailItem label="Mobile Number" value={userData.contact.mobile} />
-            <DetailItem label="Telephone Number" value={userData.contact.telephone} />
+            
+            {/* Permanent Address */}
+            <div>
+              <p className="text-sm font-semibold text-[#E7A700] mb-1">Permanent Address</p>
+              {userData.contact.sameAsPresentAddress ? (
+                <p className="text-md font-medium text-[#555555] italic">Same as present address</p>
+              ) : (
+                <p className="text-md font-medium text-[#2E2E2E]">{[
+                  userData.contact.permanentAddress?.city,
+                  userData.contact.permanentAddress?.state,
+                  userData.contact.permanentAddress?.country,
+                ].filter(Boolean).join(', ') || '—'}{userData.contact.permanentAddress?.pincode ? ` - ${userData.contact.permanentAddress.pincode}` : ''}</p>
+              )}
+            </div>
+            
+            {/* Contact Numbers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+              <DetailItem label="Mobile Number" value={userData.contact.mobile} />
+              <DetailItem label="Telephone Number" value={userData.contact.telephone} />
+            </div>
           </div>
         </section>
         
@@ -117,6 +135,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
                         <div key={exp.id} className="p-4 border-l-4 border-[#E7A700] rounded-r-lg bg-[#FFF9EE]">
                             <p className="font-semibold text-[#2E2E2E]">{exp.designation} at {exp.companyName}</p>
                             <p className="text-sm text-[#555555]">{exp.startDate || '—'} to {exp.isCurrentEmployer ? 'Present' : (exp.endDate || '—')}</p>
+                            <p className="text-sm text-[#555555] mt-1">{[exp.city, exp.state, exp.country].filter(Boolean).join(', ') || '—'}</p>
                         </div>
                     ))}
 
@@ -124,10 +143,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
                         <div key={exp.id} className="p-4 border-l-4 border-[#E7A700] rounded-r-lg bg-[#FFF9EE]">
                             <p className="font-semibold text-[#2E2E2E]">{exp.companyName}</p>
                             <p className="text-sm text-[#555555]">{exp.natureOfBusiness}</p>
-                            <p className="text-sm text-[#555555] mt-2">{[
-                              exp.address,
-                              exp.city
-                            ].filter(Boolean).join(', ') || '—'}</p>
+                            <p className="text-sm text-[#555555] mt-2">{[exp.city, exp.state, exp.country].filter(Boolean).join(', ') || '—'}</p>
                         </div>
                     ))}
 

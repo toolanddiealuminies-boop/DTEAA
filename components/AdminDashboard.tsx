@@ -143,6 +143,24 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
                 className="flex items-center justify-between p-3 border rounded-lg bg-[#FFF9F0] hover:bg-[#FFF5E2] transition"
               >
                 <div className="flex items-center space-x-4 cursor-pointer" onClick={() => setSelected(user)}>
+                  {/* Profile Picture */}
+                  <div className="flex-shrink-0">
+                    {user.personal.profilePhoto ? (
+                      <img
+                        src={user.personal.profilePhoto}
+                        alt={`${user.personal.firstName} ${user.personal.lastName}`}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-[#E7A700]"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#E7A700] to-[#CF9500] flex items-center justify-center text-white font-bold text-lg">
+                        {(user.personal.firstName?.charAt(0) || '') + (user.personal.lastName?.charAt(0) || '')}
+                      </div>
+                    )}
+                  </div>
+                  
                   <div>
                     <div className="font-semibold text-[#2E2E2E]">
                       {user.personal.firstName} {user.personal.lastName}
@@ -201,11 +219,31 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
                 className="p-3 border rounded-lg bg-white flex items-center justify-between hover:bg-gray-50 cursor-pointer"
                 onClick={() => setSelected(user)}
               >
-                <div>
-                  <div className="font-semibold text-[#2E2E2E]">
-                    {user.personal.firstName} {user.personal.lastName}
+                <div className="flex items-center space-x-3">
+                  {/* Profile Picture */}
+                  <div className="flex-shrink-0">
+                    {user.personal.profilePhoto ? (
+                      <img
+                        src={user.personal.profilePhoto}
+                        alt={`${user.personal.firstName} ${user.personal.lastName}`}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-green-500"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-bold text-lg">
+                        {(user.personal.firstName?.charAt(0) || '') + (user.personal.lastName?.charAt(0) || '')}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-500">{user.personal.email}</div>
+                  
+                  <div>
+                    <div className="font-semibold text-[#2E2E2E]">
+                      {user.personal.firstName} {user.personal.lastName}
+                    </div>
+                    <div className="text-sm text-gray-500">{user.personal.email}</div>
+                  </div>
                 </div>
                 <div className="text-sm text-green-600 font-medium">Verified</div>
               </div>
@@ -225,10 +263,37 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
               ✕
             </button>
 
-            <h3 className="text-xl font-semibold mb-1 text-[#2E2E2E]">
-              {selected.personal.firstName} {selected.personal.lastName}
-            </h3>
-            <div className="text-sm text-gray-500 mb-4">{selected.personal.email}</div>
+            {/* Modal Header with Profile Picture */}
+            <div className="flex items-center gap-4 mb-6">
+              {/* Profile Picture */}
+              <div className="flex-shrink-0">
+                {selected.personal.profilePhoto ? (
+                  <img
+                    src={selected.personal.profilePhoto}
+                    alt={`${selected.personal.firstName} ${selected.personal.lastName}`}
+                    className="w-20 h-20 rounded-full object-cover border-4 border-[#E7A700] shadow-lg"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#E7A700] to-[#CF9500] flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                    {(selected.personal.firstName?.charAt(0) || '') + (selected.personal.lastName?.charAt(0) || '')}
+                  </div>
+                )}
+              </div>
+              
+              {/* User Info */}
+              <div>
+                <h3 className="text-xl font-semibold text-[#2E2E2E]">
+                  {selected.personal.firstName} {selected.personal.lastName}
+                </h3>
+                <div className="text-sm text-gray-500">{selected.personal.email}</div>
+                {selected.alumniId && (
+                  <div className="text-sm font-medium text-[#E7A700] mt-1">ID: {selected.alumniId}</div>
+                )}
+              </div>
+            </div>
 
             {/* Personal + Contact */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -241,8 +306,20 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
               </div>
               <div>
                 <h4 className="font-semibold mb-1">Contact Details</h4>
-                <p><b>Address:</b> {selected.contact.address || '—'}</p>
-                <p><b>City:</b> {selected.contact.city || '—'}</p>
+                <p><b>Present Address:</b> {[
+                  selected.contact.presentAddress?.city,
+                  selected.contact.presentAddress?.state,
+                  selected.contact.presentAddress?.country
+                ].filter(Boolean).join(', ') || '—'}{selected.contact.presentAddress?.pincode ? ` - ${selected.contact.presentAddress.pincode}` : ''}</p>
+                {selected.contact.sameAsPresentAddress ? (
+                  <p><b>Permanent Address:</b> Same as present address</p>
+                ) : (
+                  <p><b>Permanent Address:</b> {[
+                    selected.contact.permanentAddress?.city,
+                    selected.contact.permanentAddress?.state,
+                    selected.contact.permanentAddress?.country
+                  ].filter(Boolean).join(', ') || '—'}{selected.contact.permanentAddress?.pincode ? ` - ${selected.contact.permanentAddress.pincode}` : ''}</p>
+                )}
                 <p><b>Mobile:</b> {selected.contact.mobile || '—'}</p>
               </div>
             </div>
@@ -264,6 +341,9 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
                       <p className="text-sm text-gray-600">
                         {exp.startDate || '—'} - {exp.isCurrentEmployer ? 'Present' : exp.endDate || '—'}
                       </p>
+                      <p className="text-sm text-gray-600">
+                        {[exp.city, exp.state, exp.country].filter(Boolean).join(', ') || '—'}
+                      </p>
                     </div>
                   ))}
                 </>
@@ -281,6 +361,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify }) => {
                     >
                       <p className="font-semibold text-[#2E2E2E]">{exp.companyName}</p>
                       <p className="text-sm text-gray-600">{exp.natureOfBusiness}</p>
+                      <p className="text-sm text-gray-600">{[exp.city, exp.state, exp.country].filter(Boolean).join(', ') || '—'}</p>
                     </div>
                   ))}
                 </>

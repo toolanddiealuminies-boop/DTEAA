@@ -108,8 +108,8 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
         <div className="mb-8">
             <ol className="flex items-center w-full">
                 {steps.map((step, index) => (
-                    <li key={step} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-4 after:inline-block" : ''} ${index <= currentStep ? 'text-[#E7A700] after:border-[#E7A700]' : 'text-gray-400 after:border-gray-200'}`}>
-                        <span className={`flex items-center justify-center w-10 h-10 rounded-full lg:h-12 lg:w-12 shrink-0 ${index <= currentStep ? 'bg-[#E7A700]' : 'bg-gray-200'}`}>
+                    <li key={step} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-4 after:inline-block" : ''} ${index < currentStep ? 'text-[#E7A700] after:border-[#E7A700]' : index === currentStep ? 'text-[#E7A700] after:border-gray-200' : 'text-gray-400 after:border-gray-200'}`}>
+                        <span className={`flex items-center justify-center w-10 h-10 rounded-full lg:h-12 lg:w-12 shrink-0 ${index < currentStep ? 'bg-[#E7A700]' : index === currentStep ? 'bg-[#E7A700] ring-4 ring-[#E7A700]/30' : 'bg-gray-200'}`}>
                             <span className={`font-bold ${index <= currentStep ? 'text-white' : 'text-gray-600'}`}>
                                 {index + 1}
                             </span>
@@ -119,7 +119,7 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
             </ol>
              <div className="flex justify-between mt-2 text-sm font-medium text-gray-600">
                 {steps.map((step, index) => (
-                    <span key={index} className={`text-center ${index === currentStep-1 ? 'text-[#E7A700] font-bold' : ''}`} style={{ flexBasis: '20%' }}>
+                    <span key={index} className={`text-center ${index === currentStep ? 'text-[#E7A700] font-bold' : ''}`} style={{ flexBasis: '20%' }}>
                         {step}
                     </span>
                 ))}
@@ -216,13 +216,20 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                     return "Please enter a valid email address.";
                 }
                 return '';
-            case 'contact.address': return value ? '' : requiredMsg;
-            case 'contact.city': return value ? '' : requiredMsg;
-            case 'contact.state': return value ? '' : requiredMsg;
-            case 'contact.country': return value ? '' : requiredMsg;
-            case 'contact.pincode':
+            case 'contact.presentAddress.city': return value ? '' : requiredMsg;
+            case 'contact.presentAddress.state': return value ? '' : requiredMsg;
+            case 'contact.presentAddress.country': return value ? '' : requiredMsg;
+            case 'contact.presentAddress.pincode':
                 if (!value) return requiredMsg;
-                if (!/^\d{5,6}$/.test(value)) return "Please enter a valid 5 or 6 digit pincode.";
+                if (!/^\d{4,6}$/.test(value)) return "Please enter a valid 4, 5 or 6 digit pincode.";
+                return '';
+            case 'contact.permanentAddress.city': return (allData.contact.sameAsPresentAddress || value) ? '' : requiredMsg;
+            case 'contact.permanentAddress.state': return (allData.contact.sameAsPresentAddress || value) ? '' : requiredMsg;
+            case 'contact.permanentAddress.country': return (allData.contact.sameAsPresentAddress || value) ? '' : requiredMsg;
+            case 'contact.permanentAddress.pincode':
+                if (allData.contact.sameAsPresentAddress) return '';
+                if (!value) return requiredMsg;
+                if (!/^\d{4,6}$/.test(value)) return "Please enter a valid 4, 5 or 6 digit pincode.";
                 return '';
             case 'contact.mobile':
                 if (!value) return requiredMsg;
@@ -232,26 +239,96 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
         }
     }, [userData]);
 
-    const handleChange = (section: keyof UserData, field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const handleChange = (section: keyof UserData, field: string, subfield?: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { value } = e.target;
         setUserData(prev => {
-           const newData = {
-                ...prev,
-                [section]: {
-                    ...(prev[section] as any),
-                    [field]: value
+            let newData: UserData;
+            if (subfield) {
+                // Handle nested fields like presentAddress.city
+                newData = {
+                    ...prev,
+                    [section]: {
+                        ...(prev[section] as any),
+                        [field]: {
+                            ...((prev[section] as any)[field] || {}),
+                            [subfield]: value
+                        }
+                    }
+                };
+            } else {
+                // Handle flat fields
+                newData = {
+                    ...prev,
+                    [section]: {
+                        ...(prev[section] as any),
+                        [field]: value
+                    }
+                };
+            }
+            const validationKey = subfield ? `${section}.${field}.${subfield}` : `${section}.${field}`;
+            const error = validateField(section, subfield ? `${field}.${subfield}` : field, value, newData);
+            setErrors(prevErrors => {
+                if (subfield) {
+                    return {
+                        ...prevErrors,
+                        [section]: {
+                            ...(prevErrors[section] as any),
+                            [field]: {
+                                ...((prevErrors[section] as any)?.[field] || {}),
+                                [subfield]: error
+                            }
+                        }
+                    };
+                } else {
+                    return {
+                        ...prevErrors,
+                        [section]: {
+                            ...(prevErrors[section] as any),
+                            [field]: error
+                        }
+                    };
                 }
-            };
-            const error = validateField(section, field, value, newData);
-            setErrors(prevErrors => ({
-                ...prevErrors,
-                [section]: {
-                    ...(prevErrors[section] as any),
-                    [field]: error
-                }
-            }));
+            });
             return newData;
         });
+    };
+
+    const handleSameAsPresentAddress = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { checked } = e.target;
+        setUserData(prev => {
+            if (checked) {
+                // Copy present address to permanent address
+                return {
+                    ...prev,
+                    contact: {
+                        ...prev.contact,
+                        sameAsPresentAddress: true,
+                        permanentAddress: {
+                            ...prev.contact.presentAddress
+                        }
+                    }
+                };
+            } else {
+                // Uncheck - clear permanent address fields
+                return {
+                    ...prev,
+                    contact: {
+                        ...prev.contact,
+                        sameAsPresentAddress: false
+                    }
+                };
+            }
+        });
+        // Clear permanent address errors when checked
+        if (checked) {
+            setErrors(prev => ({
+                ...prev,
+                contact: {
+                    ...(prev.contact as any),
+                    permanentAddress: {}
+                }
+            }));
+        }
     };
 
     const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,8 +370,8 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
 
     const addExperience = (type: 'employee' | 'entrepreneur') => {
         const newExp = type === 'employee'
-            ? { id: `${Date.now()}`, companyName: '', designation: '', startDate: '', endDate: '', isCurrentEmployer: false }
-            : { id: `${Date.now()}`, companyName: '', natureOfBusiness: '', address: '', city: '', pincode: '', state: '', country: '' };
+            ? { id: `${Date.now()}`, companyName: '', designation: '', startDate: '', endDate: '', isCurrentEmployer: false, city: '', state: '', country: '' }
+            : { id: `${Date.now()}`, companyName: '', natureOfBusiness: '', city: '', state: '', country: '' };
 
         setUserData(prev => ({
             ...prev,
@@ -459,16 +536,115 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 );
             case 2: // Contact Details
                 return (
-                     <div className="space-y-4">
+                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-[#2E2E2E]">Contact Information</h3>
-                        <TextArea label="Address" id="address" value={userData.contact.address} onChange={handleChange('contact', 'address')} error={errors.contact?.address} />
+                        
+                        {/* Present Address */}
+                        <div className="bg-white p-4 rounded-lg border border-[#DDD2B5]">
+                            <h4 className="font-semibold text-[#555555] mb-3">Present Address</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                <Input 
+                                    label="City" 
+                                    id="presentCity" 
+                                    value={userData.contact.presentAddress?.city || ''} 
+                                    onChange={handleChange('contact', 'presentAddress', 'city')} 
+                                    error={(errors.contact as any)?.presentAddress?.city} 
+                                />
+                                <Input 
+                                    label="State" 
+                                    id="presentState" 
+                                    value={userData.contact.presentAddress?.state || ''} 
+                                    onChange={handleChange('contact', 'presentAddress', 'state')} 
+                                    error={(errors.contact as any)?.presentAddress?.state} 
+                                />
+                                <Input 
+                                    label="Pincode" 
+                                    id="presentPincode" 
+                                    type="text" 
+                                    placeholder="4, 5 or 6 digits"
+                                    value={userData.contact.presentAddress?.pincode || ''} 
+                                    onChange={handleChange('contact', 'presentAddress', 'pincode')} 
+                                    error={(errors.contact as any)?.presentAddress?.pincode} 
+                                />
+                                <Input 
+                                    label="Country" 
+                                    id="presentCountry" 
+                                    value={userData.contact.presentAddress?.country || ''} 
+                                    onChange={handleChange('contact', 'presentAddress', 'country')} 
+                                    error={(errors.contact as any)?.presentAddress?.country} 
+                                />
+                            </div>
+                        </div>
+                        
+                        {/* Same as Present Address Checkbox */}
+                        <div className="pl-4">
+                            <Checkbox 
+                                label="Permanent address is same as present address" 
+                                id="sameAsPresentAddress"
+                                checked={userData.contact.sameAsPresentAddress || false}
+                                onChange={handleSameAsPresentAddress}
+                            />
+                        </div>
+                        
+                        {/* Permanent Address */}
+                        <div className="bg-white p-4 rounded-lg border border-[#DDD2B5]">
+                            <h4 className="font-semibold text-[#555555] mb-3">Permanent Address</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                <Input 
+                                    label="City" 
+                                    id="permanentCity" 
+                                    value={userData.contact.permanentAddress?.city || ''} 
+                                    onChange={handleChange('contact', 'permanentAddress', 'city')} 
+                                    error={(errors.contact as any)?.permanentAddress?.city}
+                                    disabled={userData.contact.sameAsPresentAddress}
+                                />
+                                <Input 
+                                    label="State" 
+                                    id="permanentState" 
+                                    value={userData.contact.permanentAddress?.state || ''} 
+                                    onChange={handleChange('contact', 'permanentAddress', 'state')} 
+                                    error={(errors.contact as any)?.permanentAddress?.state}
+                                    disabled={userData.contact.sameAsPresentAddress}
+                                />
+                                <Input 
+                                    label="Pincode" 
+                                    id="permanentPincode" 
+                                    type="text" 
+                                    placeholder="4, 5 or 6 digits"
+                                    value={userData.contact.permanentAddress?.pincode || ''} 
+                                    onChange={handleChange('contact', 'permanentAddress', 'pincode')} 
+                                    error={(errors.contact as any)?.permanentAddress?.pincode}
+                                    disabled={userData.contact.sameAsPresentAddress}
+                                />
+                                <Input 
+                                    label="Country" 
+                                    id="permanentCountry" 
+                                    value={userData.contact.permanentAddress?.country || ''} 
+                                    onChange={handleChange('contact', 'permanentAddress', 'country')} 
+                                    error={(errors.contact as any)?.permanentAddress?.country}
+                                    disabled={userData.contact.sameAsPresentAddress}
+                                />
+                            </div>
+                        </div>
+                        
+                        {/* Contact Numbers */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                            <Input label="City" id="city" value={userData.contact.city} onChange={handleChange('contact', 'city')} error={errors.contact?.city} />
-                            <Input label="State" id="state" value={userData.contact.state} onChange={handleChange('contact', 'state')} error={errors.contact?.state} />
-                            <Input label="Pincode" id="pincode" type="text" value={userData.contact.pincode} onChange={handleChange('contact', 'pincode')} error={errors.contact?.pincode} />
-                            <Input label="Country" id="country" value={userData.contact.country} onChange={handleChange('contact', 'country')} error={errors.contact?.country} />
-                            <Input label="Mobile Number" id="mobile" type="tel" value={userData.contact.mobile} onChange={handleChange('contact', 'mobile')} error={errors.contact?.mobile} />
-                            <Input label="Telephone Number" id="telephone" type="tel" optional value={userData.contact.telephone} onChange={handleChange('contact', 'telephone')} />
+                            <Input 
+                                label="Mobile Number" 
+                                id="mobile" 
+                                type="tel" 
+                                value={userData.contact.mobile || ''} 
+                                onChange={handleChange('contact', 'mobile')} 
+                                error={(errors.contact as any)?.mobile} 
+                            />
+                            <Input 
+                                label="Telephone Number" 
+                                id="telephone" 
+                                type="tel" 
+                                optional 
+                                value={userData.contact.telephone || ''} 
+                                onChange={handleChange('contact', 'telephone')} 
+                            />
                         </div>
                     </div>
                 );
@@ -480,31 +656,55 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         <div>
                             <h4 className="font-semibold text-lg text-[#555555] mb-2">Employee Experience</h4>
                             {userData.experience.employee.map((exp, index) => (
-                                <div key={exp.id} className="p-4 border rounded-lg mb-4 space-y-4 relative bg-[#F7F4EF]">
+                                <div key={exp.id} className="p-4 pt-12 border rounded-lg mb-4 space-y-4 relative bg-[#F7F4EF]">
                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                                         <Input label="Company Name" value={exp.companyName} onChange={handleExperienceChange('employee', index, 'companyName')} />
                                         <Input label="Designation" value={exp.designation} onChange={handleExperienceChange('employee', index, 'designation')} />
                                         <Input label="Start Date" type="date" value={exp.startDate} onChange={handleExperienceChange('employee', index, 'startDate')} />
                                         <Input label="End Date" type="date" value={exp.endDate} onChange={handleExperienceChange('employee', index, 'endDate')} disabled={exp.isCurrentEmployer} />
+                                        <Input label="City" value={exp.city} onChange={handleExperienceChange('employee', index, 'city')} />
+                                        <Input label="State" value={exp.state} onChange={handleExperienceChange('employee', index, 'state')} />
+                                        <Input label="Country" value={exp.country} onChange={handleExperienceChange('employee', index, 'country')} />
                                     </div>
                                     <Checkbox label="I currently work here" checked={exp.isCurrentEmployer} onChange={handleExperienceChange('employee', index, 'isCurrentEmployer')} />
-                                    <button type="button" onClick={() => removeExperience('employee', index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700">&times;</button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeExperience('employee', index)} 
+                                        className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-sm font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200"
+                                        title="Remove this entry"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        <span>Close</span>
+                                    </button>
                                 </div>
                             ))}
                             <button type="button" onClick={() => addExperience('employee')} className="text-sm font-medium text-[#E7A700] hover:text-[#CF9500]">+ Add Employment</button>
                         </div>
                          {/* Entrepreneur */}
                         <div>
-                            <h4 className="font-semibold text-lg text-[#555555] mb-2">Entrepreneur Experience</h4>
+                            <h4 className="font-semibold text-lg text-[#555555] mb-2">Entrepreneur Experience / தொழில் முனைவோர்</h4>
                              {userData.experience.entrepreneur.map((exp, index) => (
-                                <div key={exp.id} className="p-4 border rounded-lg mb-4 space-y-4 relative bg-[#F7F4EF]">
+                                <div key={exp.id} className="p-4 pt-12 border rounded-lg mb-4 space-y-4 relative bg-[#F7F4EF]">
                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                                          <Input label="Company Name" value={exp.companyName} onChange={handleExperienceChange('entrepreneur', index, 'companyName')} />
                                          <Input label="Nature of Business" value={exp.natureOfBusiness} onChange={handleExperienceChange('entrepreneur', index, 'natureOfBusiness')} />
-                                         <Input label="Address" value={exp.address} onChange={handleExperienceChange('entrepreneur', index, 'address')} />
                                          <Input label="City" value={exp.city} onChange={handleExperienceChange('entrepreneur', index, 'city')} />
+                                         <Input label="State" value={exp.state} onChange={handleExperienceChange('entrepreneur', index, 'state')} />
+                                         <Input label="Country" value={exp.country} onChange={handleExperienceChange('entrepreneur', index, 'country')} />
                                      </div>
-                                    <button type="button" onClick={() => removeExperience('entrepreneur', index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700">&times;</button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeExperience('entrepreneur', index)} 
+                                        className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-sm font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200"
+                                        title="Remove this entry"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        <span>Close</span>
+                                    </button>
                                 </div>
                             ))}
                             <button type="button" onClick={() => addExperience('entrepreneur')} className="text-sm font-medium text-[#E7A700] hover:text-[#CF9500]">+ Add Business</button>
@@ -582,14 +782,38 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
           <h4 className="font-semibold">Contact</h4>
           <button type="button" className="text-sm underline" onClick={() => setCurrentStep(2)}>Edit</button>
         </div>
-        <div className="mt-3 text-sm space-y-2">
-          <div><strong>Address:</strong> <div>{userData.contact.address || '—'}</div></div>
-          <div><strong>City:</strong> <div>{userData.contact.city || '—'}</div></div>
-          <div><strong>State:</strong> <div>{userData.contact.state || '—'}</div></div>
-          <div><strong>Pincode:</strong> <div>{userData.contact.pincode || '—'}</div></div>
-          <div><strong>Country:</strong> <div>{userData.contact.country || '—'}</div></div>
-          <div><strong>Mobile:</strong> <div>{userData.contact.mobile || '—'}</div></div>
-          <div><strong>Telephone:</strong> <div>{userData.contact.telephone || '—'}</div></div>
+        <div className="mt-3 text-sm space-y-3">
+          {/* Present Address */}
+          <div className="p-3 bg-gray-50 rounded">
+            <strong className="text-[#E7A700]">Present Address:</strong>
+            <div className="mt-1 space-y-1">
+              <div><strong>City:</strong> {userData.contact.presentAddress?.city || '—'}</div>
+              <div><strong>State:</strong> {userData.contact.presentAddress?.state || '—'}</div>
+              <div><strong>Pincode:</strong> {userData.contact.presentAddress?.pincode || '—'}</div>
+              <div><strong>Country:</strong> {userData.contact.presentAddress?.country || '—'}</div>
+            </div>
+          </div>
+          
+          {/* Permanent Address */}
+          <div className="p-3 bg-gray-50 rounded">
+            <strong className="text-[#E7A700]">Permanent Address:</strong>
+            {userData.contact.sameAsPresentAddress ? (
+              <div className="mt-1 text-gray-600 italic">Same as present address</div>
+            ) : (
+              <div className="mt-1 space-y-1">
+                <div><strong>City:</strong> {userData.contact.permanentAddress?.city || '—'}</div>
+                <div><strong>State:</strong> {userData.contact.permanentAddress?.state || '—'}</div>
+                <div><strong>Pincode:</strong> {userData.contact.permanentAddress?.pincode || '—'}</div>
+                <div><strong>Country:</strong> {userData.contact.permanentAddress?.country || '—'}</div>
+              </div>
+            )}
+          </div>
+          
+          {/* Contact Numbers */}
+          <div>
+            <div><strong>Mobile:</strong> {userData.contact.mobile || '—'}</div>
+            <div><strong>Telephone:</strong> {userData.contact.telephone || '—'}</div>
+          </div>
         </div>
       </section>
 
@@ -613,6 +837,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                     <div><strong>Company:</strong> {e.companyName || '—'}</div>
                     <div><strong>Designation:</strong> {e.designation || '—'}</div>
                     <div><strong>From:</strong> {e.startDate || '—'} <strong>To:</strong> {e.endDate || (e.isCurrentEmployer ? 'Present' : '—')}</div>
+                    <div><strong>Location:</strong> {[e.city, e.state, e.country].filter(Boolean).join(', ') || '—'}</div>
                   </li>
                 ))}
               </ul>
@@ -627,7 +852,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                   <li key={e.id} className="mb-1">
                     <div><strong>Company:</strong> {e.companyName || '—'}</div>
                     <div><strong>Nature of business:</strong> {e.natureOfBusiness || '—'}</div>
-                    <div><strong>Address:</strong> {e.address || '—'}</div>
+                    <div><strong>Location:</strong> {[e.city, e.state, e.country].filter(Boolean).join(', ') || '—'}</div>
                   </li>
                 ))}
               </ul>
