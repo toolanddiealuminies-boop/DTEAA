@@ -4,16 +4,17 @@ import { supabase } from '../lib/supabaseClient'; // <--- new import
 import ProfilePhotoUpload from './ProfilePhotoUpload';
 
 type FormErrors = {
-  [P in keyof UserData]?: UserData[P] extends object ? {
-    [K in keyof UserData[P]]?: UserData[P][K] extends object[]
-      ? (
-          { [EK in keyof UserData[P][K][number]]?: string } | undefined
-        )[]
-      : UserData[P][K] extends object
-      ? { [SK in keyof UserData[P][K]]?: string }
-      : string;
-  } : string;
-} & { paymentReceipt?: string };
+  personal?: Partial<Record<keyof UserData['personal'], string>>;
+  contact?: Partial<Record<keyof UserData['contact'], string>> | {
+    presentAddress?: Partial<Record<keyof UserData['contact']['presentAddress'], string>>;
+    permanentAddress?: Partial<Record<keyof UserData['contact']['permanentAddress'], string>>;
+    mobile?: string;
+    telephone?: string;
+    sameAsPresentAddress?: string;
+  };
+  experience?: any;
+  paymentReceipt?: string;
+};
 
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string, optional?: boolean, error?: string }> = ({ label, id, optional, error, ...props }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
