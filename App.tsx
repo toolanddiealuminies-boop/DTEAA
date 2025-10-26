@@ -555,13 +555,20 @@ const App: React.FC = () => {
     // Check if user already exists (e.g., rejected user resubmitting)
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
-      .select('id, alumni_id, status')
+      .select('id, alumni_id, status, profile_photo')
       .eq('id', session.user.id)
       .single();
     
     const isResubmission = existingProfile && existingProfile.status === 'rejected';
     console.log('User exists:', !!existingProfile, 'Status:', existingProfile?.status);
+    console.log('Existing profile photo:', existingProfile?.profile_photo);
     console.log('Is resubmission:', isResubmission);
+    
+    // If resubmitting without a new photo, preserve the existing one
+    if (isResubmission && !profilePhotoUrl && existingProfile.profile_photo) {
+      profilePhotoUrl = existingProfile.profile_photo;
+      console.log('Preserving existing profile photo:', profilePhotoUrl);
+    }
 
     // Helper to compute next sequential number for the year using database function
     const computeNextAlumniId = async (): Promise<string> => {
