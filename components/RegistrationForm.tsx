@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import type { UserData, EmployeeExperience, EntrepreneurExperience, OpenToWorkDetails } from '../types';
-import { supabase } from '../lib/supabaseClient'; // <--- new import
+import { supabase } from '../lib/supabaseClient';
 import ProfilePhotoUpload from './ProfilePhotoUpload';
+import { Country, State, City } from 'country-state-city';
 
 type FormErrors = {
     personal?: Partial<Record<keyof UserData['personal'], string>>;
@@ -126,6 +127,110 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
                 ))}
             </div>
         </div>
+    );
+};
+
+// Component for handling Country-State-City logic
+const AddressSelects: React.FC<{
+    addressType: 'presentAddress' | 'permanentAddress',
+    userData: UserData,
+    setUserData: React.Dispatch<React.SetStateAction<UserData>>,
+    errors: FormErrors,
+    disabled?: boolean
+}> = ({ addressType, userData, setUserData, errors, disabled }) => {
+
+    const selectedCountry = userData.contact[addressType]?.country || '';
+    const selectedState = userData.contact[addressType]?.state || '';
+    const selectedCity = userData.contact[addressType]?.city || '';
+
+    // Derived codes
+    const countryCode = useMemo(() => {
+        return Country.getAllCountries().find(c => c.name === selectedCountry)?.isoCode || '';
+    }, [selectedCountry]);
+
+    const stateCode = useMemo(() => {
+        if (!countryCode) return '';
+        return State.getStatesOfCountry(countryCode).find(s => s.name === selectedState)?.isoCode || '';
+    }, [countryCode, selectedState]);
+
+    // Data Sources
+    const countries = useMemo(() => Country.getAllCountries(), []);
+    const states = useMemo(() => countryCode ? State.getStatesOfCountry(countryCode) : [], [countryCode]);
+    const cities = useMemo(() => stateCode ? City.getCitiesOfState(countryCode, stateCode) : [], [countryCode, stateCode]);
+
+    const handleChange = (field: 'country' | 'state' | 'city', value: string) => {
+        setUserData(prev => {
+            const newState = { ...prev };
+            // Update the specific field
+            if (!newState.contact[addressType]) {
+                // Should not happen if initialized correctly, but safe guard
+                (newState.contact[addressType] as any) = {};
+            }
+
+            (newState.contact[addressType] as any)[field] = value;
+
+            // Reset dependent fields
+            if (field === 'country') {
+                (newState.contact[addressType] as any).state = '';
+                (newState.contact[addressType] as any).city = '';
+            } else if (field === 'state') {
+                (newState.contact[addressType] as any).city = '';
+            }
+
+            return newState;
+        });
+    };
+
+    return (
+        <>
+            <Select
+                label="Country"
+                id={`${addressType}Country`}
+                value={selectedCountry} // We store Name, not Code
+                onChange={(e) => {
+                    // Find the name associated with the selected ISO code, or if we use name as value directly
+                    // It's cleaner to use the ISO Code as the value of the option, but store the Name in userData.
+                    // But here, `value` prop expects the Name to match what we stored.
+                    // Let's assume options value is Name.
+                    handleChange('country', e.target.value);
+                }}
+                disabled={disabled}
+                error={(errors.contact as any)?.[addressType]?.country}
+            >
+                <option value="">Select Country</option>
+                {countries.map(c => (
+                    <option key={c.isoCode} value={c.name}>{c.name}</option>
+                ))}
+            </Select>
+
+            <Select
+                label="State"
+                id={`${addressType}State`}
+                value={selectedState}
+                onChange={(e) => handleChange('state', e.target.value)}
+                disabled={disabled || !countryCode}
+                error={(errors.contact as any)?.[addressType]?.state}
+            >
+                <option value="">Select State</option>
+                {states.map(s => (
+                    <option key={s.isoCode} value={s.name}>{s.name}</option>
+                ))}
+            </Select>
+
+            <Select
+                label="City"
+                id={`${addressType}City`}
+                value={selectedCity}
+                onChange={(e) => handleChange('city', e.target.value)}
+                disabled={disabled || !stateCode}
+                error={(errors.contact as any)?.[addressType]?.city}
+            >
+                <option value="">Select City</option>
+                {cities.map(c => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+            </Select>
+        </>
     );
 };
 
@@ -544,19 +649,11 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         <div className="bg-white p-4 rounded-lg border border-[#DDD2B5]">
                             <h4 className="font-semibold text-[#555555] mb-3">Present Address</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                                <Input
-                                    label="City"
-                                    id="presentCity"
-                                    value={userData.contact.presentAddress?.city || ''}
-                                    onChange={handleChange('contact', 'presentAddress', 'city')}
-                                    error={(errors.contact as any)?.presentAddress?.city}
-                                />
-                                <Input
-                                    label="State"
-                                    id="presentState"
-                                    value={userData.contact.presentAddress?.state || ''}
-                                    onChange={handleChange('contact', 'presentAddress', 'state')}
-                                    error={(errors.contact as any)?.presentAddress?.state}
+                                <AddressSelects
+                                    addressType="presentAddress"
+                                    userData={userData}
+                                    setUserData={setUserData}
+                                    errors={errors}
                                 />
                                 <Input
                                     label="Pincode"
@@ -566,13 +663,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                     value={userData.contact.presentAddress?.pincode || ''}
                                     onChange={handleChange('contact', 'presentAddress', 'pincode')}
                                     error={(errors.contact as any)?.presentAddress?.pincode}
-                                />
-                                <Input
-                                    label="Country"
-                                    id="presentCountry"
-                                    value={userData.contact.presentAddress?.country || ''}
-                                    onChange={handleChange('contact', 'presentAddress', 'country')}
-                                    error={(errors.contact as any)?.presentAddress?.country}
                                 />
                             </div>
                         </div>
@@ -591,20 +681,11 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         <div className="bg-white p-4 rounded-lg border border-[#DDD2B5]">
                             <h4 className="font-semibold text-[#555555] mb-3">Permanent Address</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                                <Input
-                                    label="City"
-                                    id="permanentCity"
-                                    value={userData.contact.permanentAddress?.city || ''}
-                                    onChange={handleChange('contact', 'permanentAddress', 'city')}
-                                    error={(errors.contact as any)?.permanentAddress?.city}
-                                    disabled={userData.contact.sameAsPresentAddress}
-                                />
-                                <Input
-                                    label="State"
-                                    id="permanentState"
-                                    value={userData.contact.permanentAddress?.state || ''}
-                                    onChange={handleChange('contact', 'permanentAddress', 'state')}
-                                    error={(errors.contact as any)?.permanentAddress?.state}
+                                <AddressSelects
+                                    addressType="permanentAddress"
+                                    userData={userData}
+                                    setUserData={setUserData}
+                                    errors={errors}
                                     disabled={userData.contact.sameAsPresentAddress}
                                 />
                                 <Input
@@ -615,14 +696,6 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                     value={userData.contact.permanentAddress?.pincode || ''}
                                     onChange={handleChange('contact', 'permanentAddress', 'pincode')}
                                     error={(errors.contact as any)?.permanentAddress?.pincode}
-                                    disabled={userData.contact.sameAsPresentAddress}
-                                />
-                                <Input
-                                    label="Country"
-                                    id="permanentCountry"
-                                    value={userData.contact.permanentAddress?.country || ''}
-                                    onChange={handleChange('contact', 'permanentAddress', 'country')}
-                                    error={(errors.contact as any)?.permanentAddress?.country}
                                     disabled={userData.contact.sameAsPresentAddress}
                                 />
                             </div>

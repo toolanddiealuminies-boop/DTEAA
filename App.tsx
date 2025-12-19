@@ -685,8 +685,6 @@ const App: React.FC = () => {
             error: insertError,
             errorCode: insertError.code,
             errorMessage: insertError.message,
-            errorDetails: (insertError as any).details,
-            errorHint: (insertError as any).hint,
             statusCode: (insertError as any).statusCode,
             fullError: JSON.stringify(insertError, null, 2)
           });
@@ -694,8 +692,9 @@ const App: React.FC = () => {
           // detect unique constraint violation (Postgres unique violation)
           // error code for unique constraint is usually "23505" for Postgres; supabase-js error shape may vary
           const isUniqueConflict = insertError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
+          const isFKViolation = insertError.code === '23503';
 
-          // Only retry on unique conflicts for new inserts (not resubmissions)
+          // 1. Retry on unique conflicts for new inserts (not resubmissions)
           if (isUniqueConflict && !isResubmission && attempt < MAX_ATTEMPTS) {
             console.log('\n⚠️ UNIQUE CONSTRAINT VIOLATION');
             console.log('The alumni_id', profileRow.alumni_id, 'already exists in the database');
@@ -704,28 +703,37 @@ const App: React.FC = () => {
             // brief wait then retry
             await new Promise(r => setTimeout(r, 200 * attempt));
             continue;
-          } else {
-            console.error('REGISTRATION FAILED - Final error after all attempts or non-retryable error');
-            console.error('Error type:', isUniqueConflict ? 'UNIQUE_CONSTRAINT' : 'OTHER');
-            console.error('Possible causes:');
-            console.error('1. RLS (Row Level Security) policy blocking insert');
-            console.error('2. Missing required columns in database');
-            console.error('3. Data type mismatch');
-            console.error('4. User does not have INSERT permission');
-            console.error('5. Database constraint violation');
+          }
 
-            alert(`Failed to save your registration. Error: ${insertError.message || 'Unknown error'}. Please contact support with this error code: ${insertError.code || 'NO_CODE'}`);
-
-            // cleanup uploaded file if desired
-            try {
-              console.log('Cleaning up uploaded receipt...');
-              await supabase.storage.from('receipts').remove([fileName]);
-              console.log('✓ Receipt cleanup successful');
-            } catch (e) {
-              console.error('Receipt cleanup failed:', e);
-            }
+          // 2. Handle Foreign Key Violation (User deleted but session active)
+          if (isFKViolation) {
+            console.error('CRITICAL: Foreign key violation. User ID in session does not exist in auth.users.');
+            alert('Your session has expired or is invalid. Please log in again.');
+            await supabase.auth.signOut();
+            window.location.reload();
             return;
           }
+
+          // 3. Fallback for non-retriable errors
+          console.error('Non-retriable error encountered.');
+          console.error('Possible causes:');
+          console.error('1. RLS (Row Level Security) policy blocking insert');
+          console.error('2. Missing required columns in database');
+          console.error('3. Data type mismatch');
+          console.error('4. User does not have INSERT permission');
+          console.error('5. Database constraint violation');
+
+          alert(`Failed to save your registration. Error: ${insertError.message || 'Unknown error'}. Please contact support with this error code: ${insertError.code || 'NO_CODE'}`);
+
+          // cleanup uploaded file if desired
+          try {
+            console.log('Cleaning up uploaded receipt...');
+            await supabase.storage.from('receipts').remove([fileName]);
+            console.log('✓ Receipt cleanup successful');
+          } catch (e) {
+            console.error('Receipt cleanup failed:', e);
+          }
+          return;
         }
 
         if (insertRes) {

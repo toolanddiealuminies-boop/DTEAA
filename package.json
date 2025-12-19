@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.75.1",
+    "country-state-city": "^3.2.1",
     "framer-motion": "^12.23.25",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.556.0",
