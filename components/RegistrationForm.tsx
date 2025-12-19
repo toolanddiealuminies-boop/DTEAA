@@ -4,22 +4,22 @@ import { supabase } from '../lib/supabaseClient'; // <--- new import
 import ProfilePhotoUpload from './ProfilePhotoUpload';
 
 type FormErrors = {
-  personal?: Partial<Record<keyof UserData['personal'], string>>;
-  contact?: Partial<Record<keyof UserData['contact'], string>> | {
-    presentAddress?: Partial<Record<keyof UserData['contact']['presentAddress'], string>>;
-    permanentAddress?: Partial<Record<keyof UserData['contact']['permanentAddress'], string>>;
-    mobile?: string;
-    telephone?: string;
-    sameAsPresentAddress?: string;
-  };
-  experience?: any;
-  paymentReceipt?: string;
+    personal?: Partial<Record<keyof UserData['personal'], string>>;
+    contact?: Partial<Record<keyof UserData['contact'], string>> | {
+        presentAddress?: Partial<Record<keyof UserData['contact']['presentAddress'], string>>;
+        permanentAddress?: Partial<Record<keyof UserData['contact']['permanentAddress'], string>>;
+        mobile?: string;
+        telephone?: string;
+        sameAsPresentAddress?: string;
+    };
+    experience?: any;
+    paymentReceipt?: string;
 };
 
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string, optional?: boolean, error?: string }> = ({ label, id, optional, error, ...props }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const isDate = props.type === 'date';
-    
+
     // Handle date input focus to show date picker on desktop
     const handleDateFocus = (e: React.FocusEvent<HTMLInputElement>) => {
         if (isDate) {
@@ -27,7 +27,7 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: str
         }
         props.onFocus?.(e);
     };
-    
+
     return (
         <div className="relative pb-5">
             <label htmlFor={id} className="block text-sm font-medium text-[#555555] mb-1">
@@ -118,7 +118,7 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
                     </li>
                 ))}
             </ol>
-             <div className="flex justify-between mt-2 text-sm font-medium text-gray-600">
+            <div className="flex justify-between mt-2 text-sm font-medium text-gray-600">
                 {steps.map((step, index) => (
                     <span key={index} className={`text-center ${index === currentStep ? 'text-[#E7A700] font-bold' : ''}`} style={{ flexBasis: '20%' }}>
                         {step}
@@ -346,7 +346,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             setReceiptFile(null);
             setReceiptPreview(null);
             if (file) {
-              setErrors(prev => ({ ...prev, paymentReceipt: "Please upload a valid image file (PNG, JPG)." }));
+                setErrors(prev => ({ ...prev, paymentReceipt: "Please upload a valid image file (PNG, JPG)." }));
             }
         }
     };
@@ -438,9 +438,9 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
 
         if (isValid) {
             try {
-              localStorage.setItem('alumniForm', JSON.stringify(userData));
+                localStorage.setItem('alumniForm', JSON.stringify(userData));
             } catch (e) {
-              console.warn('Could not persist form to localStorage', e);
+                console.warn('Could not persist form to localStorage', e);
             }
             setCurrentStep(Math.min(5, currentStep + 1));
         }
@@ -460,7 +460,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 return (
                     <div className="space-y-4">
                         <h3 className="text-xl font-semibold text-[#2E2E2E]">Personal Information</h3>
-                        
+
                         {/* Profile Photo Upload */}
                         <div className="flex justify-center mb-6">
                             <ProfilePhotoUpload
@@ -475,7 +475,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                 error={errors.personal?.profilePhoto}
                             />
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                             <Input label="First Name" id="firstName" value={userData.personal.firstName} onChange={handleChange('personal', 'firstName')} error={errors.personal?.firstName} />
                             <Input label="Last Name" id="lastName" value={userData.personal.lastName} onChange={handleChange('personal', 'lastName')} error={errors.personal?.lastName} />
@@ -517,13 +517,13 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                             </Select>
                             {/* Specialization field - shows when qualification is selected */}
                             {(showSpecialization || userData.personal.highestQualification) && (
-                                <Input 
-                                    label="Specialization" 
-                                    id="specialization" 
-                                    placeholder="e.g., Computer Science, Mechanical, etc." 
-                                    value={userData.personal.specialization} 
-                                    onChange={handleChange('personal', 'specialization')} 
-                                    error={errors.personal?.specialization} 
+                                <Input
+                                    label="Specialization"
+                                    id="specialization"
+                                    placeholder="e.g., Computer Science, Mechanical, etc."
+                                    value={userData.personal.specialization}
+                                    onChange={handleChange('personal', 'specialization')}
+                                    error={errors.personal?.specialization}
                                 />
                             )}
                             {/* Email: disabled only when value exists */}
@@ -537,128 +537,128 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 );
             case 2: // Contact Details
                 return (
-                     <div className="space-y-6">
+                    <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-[#2E2E2E]">Contact Information</h3>
-                        
+
                         {/* Present Address */}
                         <div className="bg-white p-4 rounded-lg border border-[#DDD2B5]">
                             <h4 className="font-semibold text-[#555555] mb-3">Present Address</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                                <Input 
-                                    label="City" 
-                                    id="presentCity" 
-                                    value={userData.contact.presentAddress?.city || ''} 
-                                    onChange={handleChange('contact', 'presentAddress', 'city')} 
-                                    error={(errors.contact as any)?.presentAddress?.city} 
+                                <Input
+                                    label="City"
+                                    id="presentCity"
+                                    value={userData.contact.presentAddress?.city || ''}
+                                    onChange={handleChange('contact', 'presentAddress', 'city')}
+                                    error={(errors.contact as any)?.presentAddress?.city}
                                 />
-                                <Input 
-                                    label="State" 
-                                    id="presentState" 
-                                    value={userData.contact.presentAddress?.state || ''} 
-                                    onChange={handleChange('contact', 'presentAddress', 'state')} 
-                                    error={(errors.contact as any)?.presentAddress?.state} 
+                                <Input
+                                    label="State"
+                                    id="presentState"
+                                    value={userData.contact.presentAddress?.state || ''}
+                                    onChange={handleChange('contact', 'presentAddress', 'state')}
+                                    error={(errors.contact as any)?.presentAddress?.state}
                                 />
-                                <Input 
-                                    label="Pincode" 
-                                    id="presentPincode" 
-                                    type="text" 
+                                <Input
+                                    label="Pincode"
+                                    id="presentPincode"
+                                    type="text"
                                     placeholder="4, 5 or 6 digits"
-                                    value={userData.contact.presentAddress?.pincode || ''} 
-                                    onChange={handleChange('contact', 'presentAddress', 'pincode')} 
-                                    error={(errors.contact as any)?.presentAddress?.pincode} 
+                                    value={userData.contact.presentAddress?.pincode || ''}
+                                    onChange={handleChange('contact', 'presentAddress', 'pincode')}
+                                    error={(errors.contact as any)?.presentAddress?.pincode}
                                 />
-                                <Input 
-                                    label="Country" 
-                                    id="presentCountry" 
-                                    value={userData.contact.presentAddress?.country || ''} 
-                                    onChange={handleChange('contact', 'presentAddress', 'country')} 
-                                    error={(errors.contact as any)?.presentAddress?.country} 
+                                <Input
+                                    label="Country"
+                                    id="presentCountry"
+                                    value={userData.contact.presentAddress?.country || ''}
+                                    onChange={handleChange('contact', 'presentAddress', 'country')}
+                                    error={(errors.contact as any)?.presentAddress?.country}
                                 />
                             </div>
                         </div>
-                        
+
                         {/* Same as Present Address Checkbox */}
                         <div className="pl-4">
-                            <Checkbox 
-                                label="Permanent address is same as present address" 
+                            <Checkbox
+                                label="Permanent address is same as present address"
                                 id="sameAsPresentAddress"
                                 checked={userData.contact.sameAsPresentAddress || false}
                                 onChange={handleSameAsPresentAddress}
                             />
                         </div>
-                        
+
                         {/* Permanent Address */}
                         <div className="bg-white p-4 rounded-lg border border-[#DDD2B5]">
                             <h4 className="font-semibold text-[#555555] mb-3">Permanent Address</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                                <Input 
-                                    label="City" 
-                                    id="permanentCity" 
-                                    value={userData.contact.permanentAddress?.city || ''} 
-                                    onChange={handleChange('contact', 'permanentAddress', 'city')} 
+                                <Input
+                                    label="City"
+                                    id="permanentCity"
+                                    value={userData.contact.permanentAddress?.city || ''}
+                                    onChange={handleChange('contact', 'permanentAddress', 'city')}
                                     error={(errors.contact as any)?.permanentAddress?.city}
                                     disabled={userData.contact.sameAsPresentAddress}
                                 />
-                                <Input 
-                                    label="State" 
-                                    id="permanentState" 
-                                    value={userData.contact.permanentAddress?.state || ''} 
-                                    onChange={handleChange('contact', 'permanentAddress', 'state')} 
+                                <Input
+                                    label="State"
+                                    id="permanentState"
+                                    value={userData.contact.permanentAddress?.state || ''}
+                                    onChange={handleChange('contact', 'permanentAddress', 'state')}
                                     error={(errors.contact as any)?.permanentAddress?.state}
                                     disabled={userData.contact.sameAsPresentAddress}
                                 />
-                                <Input 
-                                    label="Pincode" 
-                                    id="permanentPincode" 
-                                    type="text" 
+                                <Input
+                                    label="Pincode"
+                                    id="permanentPincode"
+                                    type="text"
                                     placeholder="4, 5 or 6 digits"
-                                    value={userData.contact.permanentAddress?.pincode || ''} 
-                                    onChange={handleChange('contact', 'permanentAddress', 'pincode')} 
+                                    value={userData.contact.permanentAddress?.pincode || ''}
+                                    onChange={handleChange('contact', 'permanentAddress', 'pincode')}
                                     error={(errors.contact as any)?.permanentAddress?.pincode}
                                     disabled={userData.contact.sameAsPresentAddress}
                                 />
-                                <Input 
-                                    label="Country" 
-                                    id="permanentCountry" 
-                                    value={userData.contact.permanentAddress?.country || ''} 
-                                    onChange={handleChange('contact', 'permanentAddress', 'country')} 
+                                <Input
+                                    label="Country"
+                                    id="permanentCountry"
+                                    value={userData.contact.permanentAddress?.country || ''}
+                                    onChange={handleChange('contact', 'permanentAddress', 'country')}
                                     error={(errors.contact as any)?.permanentAddress?.country}
                                     disabled={userData.contact.sameAsPresentAddress}
                                 />
                             </div>
                         </div>
-                        
+
                         {/* Contact Numbers */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                            <Input 
-                                label="Mobile Number" 
-                                id="mobile" 
-                                type="tel" 
-                                value={userData.contact.mobile || ''} 
-                                onChange={handleChange('contact', 'mobile')} 
-                                error={(errors.contact as any)?.mobile} 
+                            <Input
+                                label="Mobile Number"
+                                id="mobile"
+                                type="tel"
+                                value={userData.contact.mobile || ''}
+                                onChange={handleChange('contact', 'mobile')}
+                                error={(errors.contact as any)?.mobile}
                             />
-                            <Input 
-                                label="Telephone Number" 
-                                id="telephone" 
-                                type="tel" 
-                                optional 
-                                value={userData.contact.telephone || ''} 
-                                onChange={handleChange('contact', 'telephone')} 
+                            <Input
+                                label="Telephone Number"
+                                id="telephone"
+                                type="tel"
+                                optional
+                                value={userData.contact.telephone || ''}
+                                onChange={handleChange('contact', 'telephone')}
                             />
                         </div>
                     </div>
                 );
             case 3: // Experience Details
                 return (
-                     <div className="space-y-8">
+                    <div className="space-y-8">
                         <h3 className="text-xl font-semibold text-[#2E2E2E]">Professional Experience</h3>
                         {/* Employee */}
                         <div>
                             <h4 className="font-semibold text-lg text-[#555555] mb-2">Employee Experience</h4>
                             {userData.experience.employee.map((exp, index) => (
                                 <div key={exp.id} className="p-4 pt-12 border rounded-lg mb-4 space-y-4 relative bg-[#F7F4EF]">
-                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                                         <Input label="Company Name" value={exp.companyName} onChange={handleExperienceChange('employee', index, 'companyName')} />
                                         <Input label="Designation" value={exp.designation} onChange={handleExperienceChange('employee', index, 'designation')} />
                                         <Input label="Start Date" type="date" value={exp.startDate} onChange={handleExperienceChange('employee', index, 'startDate')} />
@@ -668,9 +668,9 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                         <Input label="Country" value={exp.country} onChange={handleExperienceChange('employee', index, 'country')} />
                                     </div>
                                     <Checkbox label="I currently work here" checked={exp.isCurrentEmployer} onChange={handleExperienceChange('employee', index, 'isCurrentEmployer')} />
-                                    <button 
-                                        type="button" 
-                                        onClick={() => removeExperience('employee', index)} 
+                                    <button
+                                        type="button"
+                                        onClick={() => removeExperience('employee', index)}
                                         className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-sm font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200"
                                         title="Remove this entry"
                                     >
@@ -683,21 +683,21 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                             ))}
                             <button type="button" onClick={() => addExperience('employee')} className="text-sm font-medium text-[#E7A700] hover:text-[#CF9500]">+ Add Employment</button>
                         </div>
-                         {/* Entrepreneur */}
+                        {/* Entrepreneur */}
                         <div>
                             <h4 className="font-semibold text-lg text-[#555555] mb-2">Entrepreneur Experience / தொழில் முனைவோர்</h4>
-                             {userData.experience.entrepreneur.map((exp, index) => (
+                            {userData.experience.entrepreneur.map((exp, index) => (
                                 <div key={exp.id} className="p-4 pt-12 border rounded-lg mb-4 space-y-4 relative bg-[#F7F4EF]">
-                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                                         <Input label="Company Name" value={exp.companyName} onChange={handleExperienceChange('entrepreneur', index, 'companyName')} />
-                                         <Input label="Nature of Business" value={exp.natureOfBusiness} onChange={handleExperienceChange('entrepreneur', index, 'natureOfBusiness')} />
-                                         <Input label="City" value={exp.city} onChange={handleExperienceChange('entrepreneur', index, 'city')} />
-                                         <Input label="State" value={exp.state} onChange={handleExperienceChange('entrepreneur', index, 'state')} />
-                                         <Input label="Country" value={exp.country} onChange={handleExperienceChange('entrepreneur', index, 'country')} />
-                                     </div>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => removeExperience('entrepreneur', index)} 
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                        <Input label="Company Name" value={exp.companyName} onChange={handleExperienceChange('entrepreneur', index, 'companyName')} />
+                                        <Input label="Nature of Business" value={exp.natureOfBusiness} onChange={handleExperienceChange('entrepreneur', index, 'natureOfBusiness')} />
+                                        <Input label="City" value={exp.city} onChange={handleExperienceChange('entrepreneur', index, 'city')} />
+                                        <Input label="State" value={exp.state} onChange={handleExperienceChange('entrepreneur', index, 'state')} />
+                                        <Input label="Country" value={exp.country} onChange={handleExperienceChange('entrepreneur', index, 'country')} />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeExperience('entrepreneur', index)}
                                         className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-sm font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200"
                                         title="Remove this entry"
                                     >
@@ -710,13 +710,13 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                             ))}
                             <button type="button" onClick={() => addExperience('entrepreneur')} className="text-sm font-medium text-[#E7A700] hover:text-[#CF9500]">+ Add Business</button>
                         </div>
-                         {/* Open to Work */}
+                        {/* Open to Work */}
                         <div>
-                             <Checkbox 
+                            <Checkbox
                                 label="I am currently open to work"
                                 description="Check this if you are looking for new job opportunities."
                                 checked={userData.experience.isOpenToWork}
-                                onChange={(e) => setUserData(prev => ({...prev, experience: {...prev.experience, isOpenToWork: e.target.checked}}))} />
+                                onChange={(e) => setUserData(prev => ({ ...prev, experience: { ...prev.experience, isOpenToWork: e.target.checked } }))} />
 
                             {userData.experience.isOpenToWork && (
                                 <div className="mt-4 pl-6 border-l-2 border-[#E7A700] space-y-4">
@@ -729,162 +729,162 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                         </div>
                     </div>
                 );
-           case 4: // Review
-  return (
-    <div className="space-y-6">
-      <h3 className="text-xl font-semibold text-[#2E2E2E]">Review Your Information</h3>
-      <p className="text-sm text-[#555555] mb-4">
-        Please review all the information you have provided. You can go back to edit any details before proceeding to payment.
-      </p>
+            case 4: // Review
+                return (
+                    <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-[#2E2E2E]">Review Your Information</h3>
+                        <p className="text-sm text-[#555555] mb-4">
+                            Please review all the information you have provided. You can go back to edit any details before proceeding to payment.
+                        </p>
 
-      {/* Personal Section */}
-      <section className="bg-white p-4 rounded border">
-        <div className="flex justify-between items-start">
-          <h4 className="font-semibold">Personal</h4>
-          <button
-            type="button"
-            className="text-sm underline"
-            onClick={() => setCurrentStep(1)}
-          >
-            Edit
-          </button>
-        </div>
-        <div className="mt-3">
-          {/* Profile Photo Preview */}
-          {userData.personal.profilePhoto && (
-            <div className="flex justify-center mb-4">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#E7A700] bg-gray-100">
-                <img 
-                  src={userData.personal.profilePhoto} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-          <div><strong>First name:</strong> <div>{userData.personal.firstName || '—'}</div></div>
-          <div><strong>Last name:</strong> <div>{userData.personal.lastName || '—'}</div></div>
-          <div><strong>Year of pass out:</strong> <div>{userData.personal.passOutYear || '—'}</div></div>
-          <div><strong>DOB:</strong> <div>{userData.personal.dob || '—'}</div></div>
-          <div><strong>Blood group:</strong> <div>{userData.personal.bloodGroup || '—'}</div></div>
-          <div><strong>Highest qualification:</strong> <div>{userData.personal.highestQualification || '—'}</div></div>
-          {userData.personal.specialization && <div><strong>Specialization:</strong> <div>{userData.personal.specialization}</div></div>}
-          <div><strong>Email:</strong> <div>{userData.personal.email || '—'}</div></div>
-          <div><strong>Alternate Email:</strong> <div>{userData.personal.altEmail || '—'}</div></div>
-          </div>
-        </div>
-      </section>
+                        {/* Personal Section */}
+                        <section className="bg-white p-4 rounded border">
+                            <div className="flex justify-between items-start">
+                                <h4 className="font-semibold">Personal</h4>
+                                <button
+                                    type="button"
+                                    className="text-sm underline"
+                                    onClick={() => setCurrentStep(1)}
+                                >
+                                    Edit
+                                </button>
+                            </div>
+                            <div className="mt-3">
+                                {/* Profile Photo Preview */}
+                                {userData.personal.profilePhoto && (
+                                    <div className="flex justify-center mb-4">
+                                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#E7A700] bg-gray-100">
+                                            <img
+                                                src={userData.personal.profilePhoto}
+                                                alt="Profile"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
-      {/* Contact Section */}
-      <section className="bg-white p-4 rounded border">
-        <div className="flex justify-between items-start">
-          <h4 className="font-semibold">Contact</h4>
-          <button type="button" className="text-sm underline" onClick={() => setCurrentStep(2)}>Edit</button>
-        </div>
-        <div className="mt-3 text-sm space-y-3">
-          {/* Present Address */}
-          <div className="p-3 bg-gray-50 rounded">
-            <strong className="text-[#E7A700]">Present Address:</strong>
-            <div className="mt-1 space-y-1">
-              <div><strong>City:</strong> {userData.contact.presentAddress?.city || '—'}</div>
-              <div><strong>State:</strong> {userData.contact.presentAddress?.state || '—'}</div>
-              <div><strong>Pincode:</strong> {userData.contact.presentAddress?.pincode || '—'}</div>
-              <div><strong>Country:</strong> {userData.contact.presentAddress?.country || '—'}</div>
-            </div>
-          </div>
-          
-          {/* Permanent Address */}
-          <div className="p-3 bg-gray-50 rounded">
-            <strong className="text-[#E7A700]">Permanent Address:</strong>
-            {userData.contact.sameAsPresentAddress ? (
-              <div className="mt-1 text-gray-600 italic">Same as present address</div>
-            ) : (
-              <div className="mt-1 space-y-1">
-                <div><strong>City:</strong> {userData.contact.permanentAddress?.city || '—'}</div>
-                <div><strong>State:</strong> {userData.contact.permanentAddress?.state || '—'}</div>
-                <div><strong>Pincode:</strong> {userData.contact.permanentAddress?.pincode || '—'}</div>
-                <div><strong>Country:</strong> {userData.contact.permanentAddress?.country || '—'}</div>
-              </div>
-            )}
-          </div>
-          
-          {/* Contact Numbers */}
-          <div>
-            <div><strong>Mobile:</strong> {userData.contact.mobile || '—'}</div>
-            <div><strong>Telephone:</strong> {userData.contact.telephone || '—'}</div>
-          </div>
-        </div>
-      </section>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                    <div><strong>First name:</strong> <div>{userData.personal.firstName || '—'}</div></div>
+                                    <div><strong>Last name:</strong> <div>{userData.personal.lastName || '—'}</div></div>
+                                    <div><strong>Year of pass out:</strong> <div>{userData.personal.passOutYear || '—'}</div></div>
+                                    <div><strong>DOB:</strong> <div>{userData.personal.dob || '—'}</div></div>
+                                    <div><strong>Blood group:</strong> <div>{userData.personal.bloodGroup || '—'}</div></div>
+                                    <div><strong>Highest qualification:</strong> <div>{userData.personal.highestQualification || '—'}</div></div>
+                                    {userData.personal.specialization && <div><strong>Specialization:</strong> <div>{userData.personal.specialization}</div></div>}
+                                    <div><strong>Email:</strong> <div>{userData.personal.email || '—'}</div></div>
+                                    <div><strong>Alternate Email:</strong> <div>{userData.personal.altEmail || '—'}</div></div>
+                                </div>
+                            </div>
+                        </section>
 
-      {/* Experience Section */}
-      <section className="bg-white p-4 rounded border">
-        <div className="flex justify-between items-start">
-          <h4 className="font-semibold">Experience</h4>
-          <button type="button" className="text-sm underline" onClick={() => setCurrentStep(3)}>Edit</button>
-        </div>
-        <div className="mt-3 text-sm space-y-3">
-          <div>
-            <strong>Open to work:</strong> <div>{userData.experience.isOpenToWork ? 'Yes' : 'No'}</div>
-          </div>
+                        {/* Contact Section */}
+                        <section className="bg-white p-4 rounded border">
+                            <div className="flex justify-between items-start">
+                                <h4 className="font-semibold">Contact</h4>
+                                <button type="button" className="text-sm underline" onClick={() => setCurrentStep(2)}>Edit</button>
+                            </div>
+                            <div className="mt-3 text-sm space-y-3">
+                                {/* Present Address */}
+                                <div className="p-3 bg-gray-50 rounded">
+                                    <strong className="text-[#E7A700]">Present Address:</strong>
+                                    <div className="mt-1 space-y-1">
+                                        <div><strong>City:</strong> {userData.contact.presentAddress?.city || '—'}</div>
+                                        <div><strong>State:</strong> {userData.contact.presentAddress?.state || '—'}</div>
+                                        <div><strong>Pincode:</strong> {userData.contact.presentAddress?.pincode || '—'}</div>
+                                        <div><strong>Country:</strong> {userData.contact.presentAddress?.country || '—'}</div>
+                                    </div>
+                                </div>
 
-          <div>
-            <strong>Employee Experience:</strong>
-            {userData.experience.employee && userData.experience.employee.length > 0 ? (
-              <ul className="list-disc ml-5">
-                {userData.experience.employee.map((e) => (
-                  <li key={e.id} className="mb-1">
-                    <div><strong>Company:</strong> {e.companyName || '—'}</div>
-                    <div><strong>Designation:</strong> {e.designation || '—'}</div>
-                    <div><strong>From:</strong> {e.startDate || '—'} <strong>To:</strong> {e.endDate || (e.isCurrentEmployer ? 'Present' : '—')}</div>
-                    <div><strong>Location:</strong> {[e.city, e.state, e.country].filter(Boolean).join(', ') || '—'}</div>
-                  </li>
-                ))}
-              </ul>
-            ) : <div>—</div>}
-          </div>
+                                {/* Permanent Address */}
+                                <div className="p-3 bg-gray-50 rounded">
+                                    <strong className="text-[#E7A700]">Permanent Address:</strong>
+                                    {userData.contact.sameAsPresentAddress ? (
+                                        <div className="mt-1 text-gray-600 italic">Same as present address</div>
+                                    ) : (
+                                        <div className="mt-1 space-y-1">
+                                            <div><strong>City:</strong> {userData.contact.permanentAddress?.city || '—'}</div>
+                                            <div><strong>State:</strong> {userData.contact.permanentAddress?.state || '—'}</div>
+                                            <div><strong>Pincode:</strong> {userData.contact.permanentAddress?.pincode || '—'}</div>
+                                            <div><strong>Country:</strong> {userData.contact.permanentAddress?.country || '—'}</div>
+                                        </div>
+                                    )}
+                                </div>
 
-          <div>
-            <strong>Entrepreneur Experience:</strong>
-            {userData.experience.entrepreneur && userData.experience.entrepreneur.length > 0 ? (
-              <ul className="list-disc ml-5">
-                {userData.experience.entrepreneur.map((e) => (
-                  <li key={e.id} className="mb-1">
-                    <div><strong>Company:</strong> {e.companyName || '—'}</div>
-                    <div><strong>Nature of business:</strong> {e.natureOfBusiness || '—'}</div>
-                    <div><strong>Location:</strong> {[e.city, e.state, e.country].filter(Boolean).join(', ') || '—'}</div>
-                  </li>
-                ))}
-              </ul>
-            ) : <div>—</div>}
-          </div>
+                                {/* Contact Numbers */}
+                                <div>
+                                    <div><strong>Mobile:</strong> {userData.contact.mobile || '—'}</div>
+                                    <div><strong>Telephone:</strong> {userData.contact.telephone || '—'}</div>
+                                </div>
+                            </div>
+                        </section>
 
-          {userData.experience.isOpenToWork && (
-            <div className="mt-2">
-              <strong>Open to work details:</strong>
-              <div className="mt-1 text-sm">
-                <div><strong>Technical Skills</strong><div>{userData.experience.openToWorkDetails.technicalSkills || '—'}</div></div>
-                <div><strong>Certifications</strong><div>{userData.experience.openToWorkDetails.certifications || '—'}</div></div>
-                <div><strong>Soft Skills</strong><div>{userData.experience.openToWorkDetails.softSkills || '—'}</div></div>
-                <div><strong>Other</strong><div>{userData.experience.openToWorkDetails.other || '—'}</div></div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
+                        {/* Experience Section */}
+                        <section className="bg-white p-4 rounded border">
+                            <div className="flex justify-between items-start">
+                                <h4 className="font-semibold">Experience</h4>
+                                <button type="button" className="text-sm underline" onClick={() => setCurrentStep(3)}>Edit</button>
+                            </div>
+                            <div className="mt-3 text-sm space-y-3">
+                                <div>
+                                    <strong>Open to work:</strong> <div>{userData.experience.isOpenToWork ? 'Yes' : 'No'}</div>
+                                </div>
+
+                                <div>
+                                    <strong>Employee Experience:</strong>
+                                    {userData.experience.employee && userData.experience.employee.length > 0 ? (
+                                        <ul className="list-disc ml-5">
+                                            {userData.experience.employee.map((e) => (
+                                                <li key={e.id} className="mb-1">
+                                                    <div><strong>Company:</strong> {e.companyName || '—'}</div>
+                                                    <div><strong>Designation:</strong> {e.designation || '—'}</div>
+                                                    <div><strong>From:</strong> {e.startDate || '—'} <strong>To:</strong> {e.endDate || (e.isCurrentEmployer ? 'Present' : '—')}</div>
+                                                    <div><strong>Location:</strong> {[e.city, e.state, e.country].filter(Boolean).join(', ') || '—'}</div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : <div>—</div>}
+                                </div>
+
+                                <div>
+                                    <strong>Entrepreneur Experience:</strong>
+                                    {userData.experience.entrepreneur && userData.experience.entrepreneur.length > 0 ? (
+                                        <ul className="list-disc ml-5">
+                                            {userData.experience.entrepreneur.map((e) => (
+                                                <li key={e.id} className="mb-1">
+                                                    <div><strong>Company:</strong> {e.companyName || '—'}</div>
+                                                    <div><strong>Nature of business:</strong> {e.natureOfBusiness || '—'}</div>
+                                                    <div><strong>Location:</strong> {[e.city, e.state, e.country].filter(Boolean).join(', ') || '—'}</div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : <div>—</div>}
+                                </div>
+
+                                {userData.experience.isOpenToWork && (
+                                    <div className="mt-2">
+                                        <strong>Open to work details:</strong>
+                                        <div className="mt-1 text-sm">
+                                            <div><strong>Technical Skills</strong><div>{userData.experience.openToWorkDetails.technicalSkills || '—'}</div></div>
+                                            <div><strong>Certifications</strong><div>{userData.experience.openToWorkDetails.certifications || '—'}</div></div>
+                                            <div><strong>Soft Skills</strong><div>{userData.experience.openToWorkDetails.softSkills || '—'}</div></div>
+                                            <div><strong>Other</strong><div>{userData.experience.openToWorkDetails.other || '—'}</div></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                );
 
 
             case 5: // Payment
-                 return (
+                return (
                     <div className="space-y-6">
                         <div>
                             <h3 className="text-xl font-semibold text-[#2E2E2E] mb-2">Final Step: Payment</h3>
                             <p className="text-sm text-[#555555]">Complete the payment and upload the receipt to finalize your registration.</p>
                         </div>
-                        
+
                         {/* Rejection Comments Alert */}
                         {userData.status === 'rejected' && userData.rejectionComments && (
                             <div className="p-4 border-l-4 border-red-500 bg-red-50 rounded-r-lg">
@@ -907,7 +907,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                 </div>
                             </div>
                         )}
-                        
+
                         {/* Fee Structure */}
                         <div className="p-6 border rounded-lg bg-white shadow-sm">
                             <h4 className="text-lg font-semibold text-[#2E2E2E] mb-4">Fee Structure</h4>
@@ -931,11 +931,11 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                 </p>
                             </div>
                         </div>
-                        
+
                         {/* Payment Methods */}
                         <div className="p-6 border rounded-lg bg-[#F7F4EF]">
                             <h4 className="text-lg font-semibold text-[#2E2E2E] mb-4">Payment Methods</h4>
-                            
+
                             {/* UPI Payment */}
                             <div className="mb-6">
                                 <h5 className="font-semibold text-[#555555] mb-2 flex items-center">
@@ -947,11 +947,21 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                 <div className="bg-white p-4 rounded-md border">
                                     <p className="text-sm text-[#555555] mb-1">UPI ID:</p>
                                     <p className="text-lg font-mono font-semibold text-[#2E2E2E] bg-gray-50 p-2 rounded border select-all">
-                                        dteaa@okokicic.com
+                                        334703265956342@cnrb
                                     </p>
+                                    <div className="mt-4">
+                                        <p className="text-sm text-[#555555] mb-2">Scan QR Code to Pay:</p>
+                                        <div className="flex justify-center sm:justify-start">
+                                            <img
+                                                src="/bank_details/QR_code.JPG"
+                                                alt="Payment QR Code"
+                                                className="w-48 h-auto border border-gray-200 rounded-lg shadow-sm"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            
+
                             {/* Bank Transfer */}
                             <div className="mb-6">
                                 <h5 className="font-semibold text-[#555555] mb-2 flex items-center">
@@ -961,39 +971,51 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                     Bank Transfer
                                 </h5>
                                 <div className="bg-white p-4 rounded-md border space-y-3">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <p className="text-sm text-[#555555] mb-1">Account Number:</p>
-                                            <p className="font-mono font-semibold text-[#2E2E2E] bg-gray-50 p-2 rounded border select-all">
-                                                1234567890
-                                            </p>
+                                    <div className="space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">Account Holder Name</span>
+                                            <span className="font-semibold text-[#2E2E2E] text-right">Dindigul Tool Engineering Alumni Association</span>
                                         </div>
-                                        <div>
-                                            <p className="text-sm text-[#555555] mb-1">IFSC Code:</p>
-                                            <p className="font-mono font-semibold text-[#2E2E2E] bg-gray-50 p-2 rounded border select-all">
-                                                HDFC0001234
-                                            </p>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">Account Number</span>
+                                            <span className="font-semibold text-[#2E2E2E] font-mono text-right select-all">120036956342</span>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-[#555555] mb-1">Bank Name:</p>
-                                        <p className="font-semibold text-[#2E2E2E]">HDFC Bank</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-[#555555] mb-1">Account Holder:</p>
-                                        <p className="font-semibold text-[#2E2E2E]">Dindigul Tool Engineering Alumni Association</p>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">IFSC Code</span>
+                                            <span className="font-semibold text-[#2E2E2E] font-mono text-right select-all">CNRB0001459</span>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">MICR Code</span>
+                                            <span className="font-semibold text-[#2E2E2E] font-mono text-right select-all">625015029</span>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">Bank Name</span>
+                                            <span className="font-semibold text-[#2E2E2E] text-right">Canara Bank</span>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">Branch Name</span>
+                                            <span className="font-semibold text-[#2E2E2E] text-right">Nagal Nagar, Dindigul</span>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-100 pb-2">
+                                            <span className="text-sm font-medium text-[#555555]">Branch Code</span>
+                                            <span className="font-semibold text-[#2E2E2E] font-mono text-right">001459</span>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between pb-2">
+                                            <span className="text-sm font-medium text-[#555555] sm:w-1/3">Address</span>
+                                            <span className="font-semibold text-[#2E2E2E] text-right sm:w-2/3">Varadaraja Bhavanam, 119, Railway Station Road, Nagal nagar, Dindigul-624003</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* Receipt Upload */}
                             <div>
                                 <h5 className="font-semibold text-[#555555] mb-2">Upload Payment Receipt</h5>
                                 <div className="bg-white p-4 rounded-md border">
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        onChange={handleReceiptUpload} 
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleReceiptUpload}
                                         className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E7A700]/20 file:text-[#CF9500] hover:file:bg-[#E7A700]/30"
                                     />
                                     {errors.paymentReceipt && <p className="mt-2 text-xs text-red-500">{errors.paymentReceipt}</p>}
@@ -1030,7 +1052,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                 {currentStep === 4 ? 'Proceed to Payment' : 'Next'}
                             </button>
                         ) : (
-                             <button type="button" onClick={handleSubmit} disabled={!receiptFile} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            <button type="button" onClick={handleSubmit} disabled={!receiptFile} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
                                 Submit & Register
                             </button>
                         )}

@@ -10,7 +10,11 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const LoginPage: React.FC = () => {
+interface LoginPageProps {
+  onBack?: () => void;
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -28,13 +32,13 @@ const LoginPage: React.FC = () => {
     <div className="bg-[#FFF9EE] p-8 sm:p-12 rounded-xl shadow-2xl text-center max-w-md mx-auto animate-fade-in border border-[#DDD2B5]">
       {/* Logo */}
       <div className="mb-6">
-        <img 
-          src="/logo/dteaa_logo.jpeg" 
-          alt="DTEAA Logo" 
+        <img
+          src="/logo/dteaa_logo.jpeg"
+          alt="DTEAA Logo"
           className="w-24 h-24 mx-auto rounded-full object-cover border-4 border-[#E7A700] shadow-lg"
         />
       </div>
-      
+
       <h3 className="text-2xl font-bold text-[#2E2E2E] mb-2">Dindigul Tool Engineering</h3>
       <h4 className="text-xl font-semibold text-[#E7A700] mb-2">Alumni Association</h4>
       <p className="text-[#555555] mb-8">Please sign in to continue to your profile or register.</p>
@@ -47,6 +51,14 @@ const LoginPage: React.FC = () => {
           Sign in with Google
         </button>
       </div>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="mt-6 text-sm text-gray-500 hover:text-[#E7A700] transition-colors underline"
+        >
+          Back to Home
+        </button>
+      )}
     </div>
   );
 };
