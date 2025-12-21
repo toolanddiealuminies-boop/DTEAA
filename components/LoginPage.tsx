@@ -29,23 +29,28 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="bg-[#FFF9EE] p-8 sm:p-12 rounded-xl shadow-2xl text-center max-w-md mx-auto animate-fade-in border border-[#DDD2B5]">
+    <div className="bg-light-card dark:bg-dark-card p-8 sm:p-12 rounded-xl shadow-2xl text-center max-w-md mx-auto animate-fade-in border border-light-border dark:border-dark-border">
       {/* Logo */}
       <div className="mb-6">
         <img
-          src="/logo/dteaa_logo.jpeg"
+          src="/dteaa_logo_light.png"
           alt="DTEAA Logo"
-          className="w-24 h-24 mx-auto rounded-full object-cover border-4 border-[#E7A700] shadow-lg"
+          className="w-24 h-24 mx-auto rounded-full object-cover shadow-lg dark:hidden"
+        />
+        <img
+          src="/dteaa_logo_dark.png"
+          alt="DTEAA Logo"
+          className="w-24 h-24 mx-auto rounded-full object-cover shadow-lg hidden dark:block mix-blend-screen"
         />
       </div>
 
-      <h3 className="text-2xl font-bold text-[#2E2E2E] mb-2">Dindigul Tool Engineering</h3>
-      <h4 className="text-xl font-semibold text-[#E7A700] mb-2">Alumni Association</h4>
-      <p className="text-[#555555] mb-8">Please sign in to continue to your profile or register.</p>
+      <h3 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary mb-2 font-heading">Dindigul Tool Engineering</h3>
+      <h4 className="text-xl font-semibold text-primary mb-2 font-heading">Alumni Association</h4>
+      <p className="text-light-text-secondary dark:text-dark-text-secondary mb-8">Please sign in to continue to your profile or register.</p>
       <div className="space-y-4">
         <button
           onClick={handleGoogleLogin}
-          className="w-full inline-flex items-center justify-center px-4 py-3 bg-[#F7F4EF] border border-[#DDD2B5] rounded-lg shadow-sm text-md font-medium text-[#2E2E2E] hover:bg-[#F0ECE4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E7A700] transition-all duration-300 transform hover:scale-105 hover:shadow-md"
+          className="w-full inline-flex items-center justify-center px-4 py-3 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg shadow-sm text-md font-medium text-light-text-primary dark:text-dark-text-primary hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-300 transform hover:scale-105 hover:shadow-md"
         >
           <GoogleIcon />
           Sign in with Google
@@ -54,7 +59,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
       {onBack && (
         <button
           onClick={onBack}
-          className="mt-6 text-sm text-gray-500 hover:text-[#E7A700] transition-colors underline"
+          className="mt-6 text-sm text-light-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors underline"
         >
           Back to Home
         </button>

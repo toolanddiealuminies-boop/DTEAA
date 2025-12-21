@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import LoginPage from './components/LoginPage';
 import RegistrationForm from './components/RegistrationForm';
 import ProfilePage from './components/ProfilePage';
-import Header from './components/Header';
+import Layout from './components/Layout'; // <--- Changed from Header
 import AdminDashboard from './components/AdminDashboard';
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -857,11 +857,11 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="text-center p-12 text-lg font-medium text-[#555555]">Loading session...</div>;
+    if (loading) return <div className="text-center p-12 text-lg font-medium text-light-text-secondary dark:text-dark-text-secondary">Loading session...</div>;
     if (isAdminView) return <AdminDashboard users={allUsers} onVerify={handleVerify} onReject={handleReject} />;
 
     // If not logged in, show LoginPage (which is wrapped by the main layout when showLogin is true)
-    if (!session) return <LoginPage onBack={() => setShowLogin(false)} />;
+    if (!session && showLogin) return <LoginPage onBack={() => setShowLogin(false)} />;
 
     // If user registration was rejected, show them the payment page with rejection comments
     if (isRegistered && userData?.status === 'rejected') {
@@ -876,7 +876,7 @@ const App: React.FC = () => {
       );
     }
 
-    if (!isRegistered) {
+    if (!isRegistered && session) {
       return (
         <RegistrationForm
           userData={registrationFormData}
@@ -887,28 +887,29 @@ const App: React.FC = () => {
         />
       );
     }
-    return <ProfilePage userData={userData!} />;
+
+    if (session && isRegistered) {
+      // Profile Page
+      return <ProfilePage userData={userData!} />;
+    }
+
+    // Default fallback: Home Page (if not logged in and not showing login)
+    return <HomePage onLoginClick={() => setShowLogin(true)} />;
   };
 
-  // If not logged in and not showing login page, show Home Page
-  if (!session && !showLogin && !loading) {
-    return <HomePage onLoginClick={() => setShowLogin(true)} />;
-  }
-
   return (
-    <>
-      <Header
-        isRegistered={isRegistered}
-        isLoggedIn={!!session}
-        onLogout={handleLogout}
-        isAdminView={isAdminView}
-        onAdminClick={() => setIsAdminView(true)}
-      />
-
+    <Layout
+      onLoginClick={() => setShowLogin(true)}
+      isLoggedIn={!!session}
+      isAdmin={userData?.role === 'admin'}
+      onLogout={handleLogout}
+      userName={userData?.personal?.firstName}
+      onAdminClick={() => setIsAdminView(true)}
+    >
       {/* Verification Notification */}
       {showVerificationNotification && (
-        <div className="fixed top-20 right-4 z-50 animate-slide-in-right">
-          <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+        <div className="fixed top-24 right-4 z-50 animate-slide-in-right">
+          <div className="bg-success-light text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -928,20 +929,22 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col items-center p-4 sm:p-6 lg:p-8 pt-24 font-sans min-h-screen">
-        <div className="w-full max-w-4xl mx-auto mt-8">
-          <header className="text-center mb-8 animate-fade-in">
-            <h1 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#E7A700] to-[#CF9500] pb-2">
-              Dindigul Tool Engineering
-            </h1>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-[#2E2E2E] mt-1">
-              Alumni Association
-            </h2>
-          </header>
-          <main>{renderContent()}</main>
-        </div>
+      {/* Global Page Header/Title - only show if NOT on Home Page as Hero suffices there */}
+      {(!session && !showLogin && !loading) ? null : (
+        <header className="text-center mb-10 animate-fade-in">
+          <h1 className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#E7A700] to-[#CF9500] pb-2 font-heading">
+            Dindigul Tool Engineering
+          </h1>
+          <h2 className="text-2xl sm:text-3xl font-semibold text-light-text-primary dark:text-dark-text-primary mt-1 font-heading">
+            Alumni Association
+          </h2>
+        </header>
+      )}
+
+      <div className="w-full">
+        {renderContent()}
       </div>
-    </>
+    </Layout>
   );
 };
 

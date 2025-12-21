@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sun, Moon } from 'lucide-react';
+import { Menu, X, Sun, Moon, User, LogOut } from 'lucide-react';
 
 interface NavbarProps {
     onLoginClick: () => void;
+    isLoggedIn?: boolean;
+    isAdmin?: boolean;
+    onLogout?: () => void;
+    userName?: string;
+    onAdminClick?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
+const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLogout, userName, onAdminClick }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDark, setIsDark] = useState(false);
@@ -89,6 +94,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
                         </a>
                     ))}
 
+                    {isAdmin && (
+                        <button
+                            onClick={onAdminClick}
+                            className="text-sm font-medium transition-colors hover:text-primary text-light-text-primary dark:text-dark-text-primary flex items-center gap-1"
+                        >
+                            Admin
+                        </button>
+                    )}
+
                     <button
                         onClick={toggleTheme}
                         className="p-2 rounded-full transition-colors text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-border dark:hover:bg-dark-border"
@@ -97,12 +111,27 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
                         {isDark ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
 
-                    <button
-                        onClick={onLoginClick}
-                        className="px-6 py-2 rounded-md bg-primary text-white font-bold hover:bg-primary-hover transition-all active:scale-95"
-                    >
-                        Login
-                    </button>
+                    {isLoggedIn ? (
+                        <div className="flex items-center gap-4">
+                            <div className="text-sm font-medium text-light-text-primary dark:text-dark-text-primary hidden lg:block">
+                                {userName}
+                            </div>
+                            <button
+                                onClick={onLogout}
+                                className="px-4 py-2 rounded-md border border-red-500 text-red-500 font-medium hover:bg-red-50 dark:hover:bg-red-900/10 transition-all flex items-center gap-2"
+                            >
+                                <LogOut size={16} />
+                                Logout
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={onLoginClick}
+                            className="px-6 py-2 rounded-md bg-primary text-white font-bold hover:bg-primary-hover transition-all active:scale-95"
+                        >
+                            Login
+                        </button>
+                    )}
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -142,15 +171,43 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
                                     {link.name}
                                 </a>
                             ))}
-                            <button
-                                onClick={() => {
-                                    setIsMobileMenuOpen(false);
-                                    onLoginClick();
-                                }}
-                                className="w-full py-3 rounded-md bg-primary text-white font-bold hover:bg-primary-hover transition-all active:scale-95"
-                            >
-                                Login
-                            </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false);
+                                        onAdminClick && onAdminClick();
+                                    }}
+                                    className="text-light-text-primary dark:text-dark-text-primary hover:text-primary font-medium text-left"
+                                >
+                                    Admin Dashboard
+                                </button>
+                            )}
+                            {isLoggedIn ? (
+                                <>
+                                    <div className="text-light-text-secondary dark:text-dark-text-secondary text-sm">
+                                        Signed in as {userName}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setIsMobileMenuOpen(false);
+                                            onLogout && onLogout();
+                                        }}
+                                        className="w-full py-3 rounded-md border border-red-500 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 transition-all active:scale-95"
+                                    >
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false);
+                                        onLoginClick();
+                                    }}
+                                    className="w-full py-3 rounded-md bg-primary text-white font-bold hover:bg-primary-hover transition-all active:scale-95"
+                                >
+                                    Login
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 )}
