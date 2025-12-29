@@ -108,23 +108,46 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
     const steps = ['Personal', 'Contact', 'Experience', 'Review', 'Payment'];
     return (
         <div className="mb-8">
-            <ol className="flex items-center w-full">
-                {steps.map((step, index) => (
-                    <li key={step} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-4 after:inline-block" : ''} ${index < currentStep ? 'text-[#E7A700] after:border-[#E7A700]' : index === currentStep ? 'text-[#E7A700] after:border-gray-200' : 'text-gray-400 after:border-gray-200'}`}>
-                        <span className={`flex items-center justify-center w-10 h-10 rounded-full lg:h-12 lg:w-12 shrink-0 ${index < currentStep ? 'bg-[#E7A700]' : index === currentStep ? 'bg-[#E7A700] ring-4 ring-[#E7A700]/30' : 'bg-gray-200'}`}>
-                            <span className={`font-bold ${index <= currentStep ? 'text-white' : 'text-gray-600'}`}>
-                                {index + 1}
+            {/* Desktop Stepper */}
+            <div className="hidden md:block">
+                <ol className="flex items-center w-full">
+                    {steps.map((step, index) => (
+                        <li key={step} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-4 after:inline-block" : ''} ${index < currentStep ? 'text-[#E7A700] after:border-[#E7A700]' : index === currentStep ? 'text-[#E7A700] after:border-gray-200' : 'text-gray-400 after:border-gray-200'}`}>
+                            <span className={`flex items-center justify-center w-10 h-10 rounded-full lg:h-12 lg:w-12 shrink-0 ${index < currentStep ? 'bg-[#E7A700]' : index === currentStep ? 'bg-[#E7A700] ring-4 ring-[#E7A700]/30' : 'bg-gray-200'}`}>
+                                <span className={`font-bold ${index <= currentStep ? 'text-white' : 'text-gray-600'}`}>
+                                    {index + 1}
+                                </span>
                             </span>
+                        </li>
+                    ))}
+                </ol>
+                <div className="flex justify-between mt-2 text-sm font-medium text-gray-600">
+                    {steps.map((step, index) => (
+                        <span key={index} className={`text-center ${index === currentStep ? 'text-[#E7A700] font-bold' : ''}`} style={{ flexBasis: '20%' }}>
+                            {step}
                         </span>
-                    </li>
-                ))}
-            </ol>
-            <div className="flex justify-between mt-2 text-sm font-medium text-gray-600">
-                {steps.map((step, index) => (
-                    <span key={index} className={`text-center ${index === currentStep ? 'text-[#E7A700] font-bold' : ''}`} style={{ flexBasis: '20%' }}>
-                        {step}
+                    ))}
+                </div>
+            </div>
+
+            {/* Mobile Stepper (Simplified) */}
+            <div className="md:hidden flex flex-col items-center justify-center space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <div className="flex items-center space-x-3">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E7A700] text-white font-bold ring-4 ring-[#E7A700]/30">
+                        {currentStep + 1}
                     </span>
-                ))}
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Step {currentStep + 1} of {steps.length}</span>
+                        <span className="text-lg font-bold text-[#E7A700]">{steps[currentStep]}</span>
+                    </div>
+                </div>
+                {/* Simple Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div
+                        className="bg-[#E7A700] h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                    ></div>
+                </div>
             </div>
         </div>
     );

@@ -3,12 +3,12 @@ import { motion } from 'framer-motion';
 
 const Gallery: React.FC = () => {
     const images = [
-        "https://images.unsplash.com/photo-1523580494863-6f3031224c94?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1511632765486-a01980e01a18?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+        "/events/Alumni_meetup_21_12_2025.jpeg",  
+        "/events/VKV_Meetup_21_12_2025.jpeg",      
+        "/events/Independenace_day.jpeg",
+        "/events/Independenace_day_1.jpeg",        
+        "/events/event_1.jpeg",
+        "/events/Autocad_comp.jpeg",
     ];
 
     return (

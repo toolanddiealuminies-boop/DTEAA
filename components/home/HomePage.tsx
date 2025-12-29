@@ -1,7 +1,7 @@
 import React from 'react';
 import Hero from './Hero';
 import About from './About';
-import Stats from './Stats';
+import OrganizationChart from './OrganizationChart';
 import Gallery from './Gallery';
 
 interface HomePageProps {
@@ -12,9 +12,9 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
     return (
         <div className="font-sans text-gray-900 bg-transparent">
             {/* Navbar handled by Global Layout */}
-            <Hero />
+            <Hero onJoinClick={onLoginClick} />
             <About />
-            <Stats />
+            <OrganizationChart />
             <Gallery />
             {/* Footer handled by Global Layout */}
         </div>

@@ -1,7 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const Hero: React.FC = () => {
+interface HeroProps {
+    onJoinClick: () => void;
+}
+
+const Hero: React.FC<HeroProps> = ({ onJoinClick }) => {
     return (
         <div className="relative h-screen w-full overflow-hidden">
             {/* Background Image */}
@@ -68,7 +72,10 @@ const Hero: React.FC = () => {
                     transition={{ duration: 0.8, delay: 0.8 }}
                     className="flex flex-col sm:flex-row gap-4"
                 >
-                    <button className="px-8 py-4 rounded-md bg-primary text-white font-bold text-lg hover:bg-primary-hover transition-all transform active:scale-95 shadow-lg shadow-primary/30">
+                    <button
+                        onClick={onJoinClick}
+                        className="px-8 py-4 rounded-md bg-primary text-white font-bold text-lg hover:bg-primary-hover transition-all transform active:scale-95 shadow-lg shadow-primary/30"
+                    >
                         Join Community
                     </button>
                     <button className="px-8 py-4 rounded-md bg-transparent text-primary font-bold text-lg border-2 border-primary hover:bg-primary hover:text-white transition-all active:scale-95">
@@ -78,7 +85,7 @@ const Hero: React.FC = () => {
             </div>
 
             {/* Scroll Indicator */}
-            <motion.div
+            {/* <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.5, duration: 1 }}
@@ -91,7 +98,7 @@ const Hero: React.FC = () => {
                         className="w-1.5 h-1.5 bg-light-text-primary dark:bg-dark-text-primary rounded-full"
                     />
                 </div>
-            </motion.div>
+            </motion.div> */}
         </div>
     );
 };

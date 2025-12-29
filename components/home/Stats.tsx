@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 
 const Stats: React.FC = () => {
     const stats = [
-        { value: "5000+", label: "Alumni" },
-        { value: "50+", label: "Events/Year" },
+        { value: "1000+", label: "Alumni" },
+        { value: "50+", label: "Events" },
         { value: "100+", label: "Mentors" },
         { value: "₹10L+", label: "Scholarships" },
     ];

@@ -9,6 +9,7 @@ import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import type { UserData } from './types';
 import HomePage from './components/home/HomePage';
+import ConfirmationModal from './components/ConfirmationModal';
 
 const initialUserData: UserData = {
   id: '',
@@ -856,6 +857,25 @@ const App: React.FC = () => {
     }
   };
 
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+
+  // Determine if user is in registration flow (logged in but not registered)
+  const isRegistration = !!session && !isRegistered;
+
+  // Modified logout handler
+  const handleLogoutClick = () => {
+    if (isRegistration) {
+      setShowLogoutConfirmation(true);
+    } else {
+      handleLogout();
+    }
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirmation(false);
+    await handleLogout();
+  };
+
   const renderContent = () => {
     if (loading) return <div className="text-center p-12 text-lg font-medium text-light-text-secondary dark:text-dark-text-secondary">Loading session...</div>;
     if (isAdminView) return <AdminDashboard users={allUsers} onVerify={handleVerify} onReject={handleReject} />;
@@ -902,10 +922,29 @@ const App: React.FC = () => {
       onLoginClick={() => setShowLogin(true)}
       isLoggedIn={!!session}
       isAdmin={userData?.role === 'admin'}
-      onLogout={handleLogout}
+      onLogout={handleLogoutClick}
       userName={userData?.personal?.firstName}
       onAdminClick={() => setIsAdminView(true)}
+      onHomeClick={() => {
+        setShowLogin(false);
+        setIsAdminView(false);
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }}
+      isLoginPage={!session && showLogin}
+      isRegistrationPage={isRegistration}
     >
+      {/* Logout Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showLogoutConfirmation}
+        title="Incomplete Registration"
+        message="Do you want to continue the registration process?"
+        confirmText="No"
+        cancelText="Yes"
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutConfirmation(false)}
+      />
+
       {/* Verification Notification */}
       {showVerificationNotification && (
         <div className="fixed top-24 right-4 z-50 animate-slide-in-right">

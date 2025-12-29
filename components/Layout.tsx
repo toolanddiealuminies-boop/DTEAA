@@ -10,6 +10,9 @@ interface LayoutProps {
     onLogout?: () => void;
     userName?: string;
     onAdminClick?: () => void;
+    onHomeClick?: () => void;
+    isLoginPage?: boolean;
+    isRegistrationPage?: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -19,10 +22,13 @@ const Layout: React.FC<LayoutProps> = ({
     isAdmin = false,
     onLogout,
     userName,
-    onAdminClick
+    onAdminClick,
+    onHomeClick,
+    isLoginPage,
+    isRegistrationPage
 }) => {
     return (
-        <div className="flex flex-col min-h-screen font-sans bg-light-bg dark:bg-dark-bg text-light-text-primary dark:text-dark-text-primary transition-colors duration-300">
+        <div className="flex flex-col min-h-screen font-sans bg-light-bg text-light-text-primary transition-colors duration-300">
             <Navbar
                 onLoginClick={onLoginClick}
                 isLoggedIn={isLoggedIn}
@@ -30,6 +36,9 @@ const Layout: React.FC<LayoutProps> = ({
                 onLogout={onLogout}
                 userName={userName}
                 onAdminClick={onAdminClick}
+                onHomeClick={onHomeClick}
+                isLoginPage={isLoginPage}
+                isRegistrationPage={isRegistrationPage}
             />
 
             <main className="flex-grow pt-24 px-4 sm:px-6 lg:px-8">

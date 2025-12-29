@@ -6,11 +6,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     server: {
-      port: 3000,
+      port: 3001,
       host: '0.0.0.0',
       allowedHosts: [
         'dteaa.onrender.com',
-        'f5906d8804d5.ngrok-free.app',
+        'f6c523acec32.ngrok-free.app',
         'dte-alumni-association.onrender.com'],
     },
     plugins: [react()],
