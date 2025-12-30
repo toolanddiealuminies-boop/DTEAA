@@ -5,10 +5,13 @@ import RegistrationForm from './components/RegistrationForm';
 import ProfilePage from './components/ProfilePage';
 import Layout from './components/Layout'; // <--- Changed from Header
 import AdminDashboard from './components/AdminDashboard';
+import { Dashboard } from './components/dashboard';
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import type { UserData } from './types';
 import HomePage from './components/home/HomePage';
+import GalleryPage from './components/GalleryPage';
+import AboutPage from './components/AboutPage';
 import ConfirmationModal from './components/ConfirmationModal';
 
 const initialUserData: UserData = {
@@ -17,6 +20,12 @@ const initialUserData: UserData = {
   alumniId: '',
   status: 'pending',
   paymentReceipt: '',
+  privacy: {
+    showEmail: true,
+    showPhone: false,
+    showCompany: false,
+    showLocation: false,
+  },
   personal: {
     firstName: '',
     lastName: '',
@@ -71,6 +80,8 @@ const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showVerificationNotification, setShowVerificationNotification] = useState(false);
   const [showLogin, setShowLogin] = useState(false); // New state for Home Page vs Login
+  const [showGallery, setShowGallery] = useState(false); // Gallery page state
+  const [showAbout, setShowAbout] = useState(false); // About page state
 
   // fetch profile by user id and update local state
   const fetchUserProfile = async (userId: string) => {
@@ -136,6 +147,12 @@ const App: React.FC = () => {
             softSkills: '',
             other: '',
           },
+        },
+        privacy: data.privacy ?? {
+          showEmail: true,
+          showPhone: false,
+          showCompany: false,
+          showLocation: false,
         },
       };
 
@@ -259,6 +276,12 @@ const App: React.FC = () => {
                       softSkills: '',
                       other: '',
                     },
+                  },
+                  privacy: newData.privacy ?? {
+                    showEmail: true,
+                    showPhone: false,
+                    showCompany: false,
+                    showLocation: false,
                   },
                 };
 
@@ -762,7 +785,13 @@ const App: React.FC = () => {
           paymentReceipt: insertedData.payment_receipt ?? '',
           personal: insertedData.personal ?? registrationFormData.personal,
           contact: insertedData.contact ?? registrationFormData.contact,
-          experience: insertedData.experience ?? registrationFormData.experience
+          experience: insertedData.experience ?? registrationFormData.experience,
+          privacy: insertedData.privacy ?? {
+            showEmail: true,
+            showPhone: false,
+            showCompany: false,
+            showLocation: false,
+          },
         };
 
         setUserData(mapped);
@@ -908,14 +937,43 @@ const App: React.FC = () => {
       );
     }
 
-    if (session && isRegistered) {
-      // Profile Page
+    if (session && isRegistered && userData?.status === 'pending') {
+      // Profile Page for pending users (waiting for admin approval)
       return <ProfilePage userData={userData!} />;
     }
 
     // Default fallback: Home Page (if not logged in and not showing login)
-    return <HomePage onLoginClick={() => setShowLogin(true)} />;
+    return <HomePage onLoginClick={() => setShowLogin(true)} onViewGallery={() => setShowGallery(true)} onViewAbout={() => setShowAbout(true)} />;
   };
+
+  // If showing Gallery page
+  if (showGallery) {
+    return <GalleryPage onBack={() => setShowGallery(false)} onViewAbout={() => { setShowGallery(false); setShowAbout(true); }} onLoginClick={() => { setShowGallery(false); setShowLogin(true); }} />;
+  }
+
+  // If showing About page
+  if (showAbout) {
+    return <AboutPage onBack={() => setShowAbout(false)} onViewGallery={() => { setShowAbout(false); setShowGallery(true); }} onLoginClick={() => { setShowAbout(false); setShowLogin(true); }} />;
+  }
+
+  // If user is verified, render Dashboard outside of Layout (it has its own navbar)
+  if (session && isRegistered && userData?.status === 'verified' && !isAdminView) {
+    return (
+      <>
+        {/* Logout Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showLogoutConfirmation}
+          title="Logout Confirmation"
+          message="Are you sure you want to logout?"
+          confirmText="Logout"
+          cancelText="Cancel"
+          onConfirm={confirmLogout}
+          onCancel={() => setShowLogoutConfirmation(false)}
+        />
+        <Dashboard userData={userData!} onLogout={handleLogoutClick} />
+      </>
+    );
+  }
 
   return (
     <Layout
@@ -933,6 +991,8 @@ const App: React.FC = () => {
       }}
       isLoginPage={!session && showLogin}
       isRegistrationPage={isRegistration}
+      onViewGallery={() => setShowGallery(true)}
+      onViewAbout={() => setShowAbout(true)}
     >
       {/* Logout Confirmation Modal */}
       <ConfirmationModal

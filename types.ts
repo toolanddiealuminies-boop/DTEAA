@@ -28,6 +28,13 @@ export interface OpenToWorkDetails {
   other: string;
 }
 
+export interface PrivacySettings {
+  showEmail: boolean;
+  showPhone: boolean;
+  showCompany: boolean;
+  showLocation: boolean;
+}
+
 export interface UserData {
   id: string; // Corresponds to Supabase auth.users.id
   role: 'user' | 'admin';
@@ -70,4 +77,5 @@ export interface UserData {
     isOpenToWork: boolean;
     openToWorkDetails: OpenToWorkDetails;
   };
+  privacy: PrivacySettings;
 }

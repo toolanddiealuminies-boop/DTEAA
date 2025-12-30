@@ -11,6 +11,8 @@ interface LayoutProps {
     userName?: string;
     onAdminClick?: () => void;
     onHomeClick?: () => void;
+    onViewGallery?: () => void;
+    onViewAbout?: () => void;
     isLoginPage?: boolean;
     isRegistrationPage?: boolean;
 }
@@ -24,6 +26,8 @@ const Layout: React.FC<LayoutProps> = ({
     userName,
     onAdminClick,
     onHomeClick,
+    onViewGallery,
+    onViewAbout,
     isLoginPage,
     isRegistrationPage
 }) => {
@@ -37,6 +41,8 @@ const Layout: React.FC<LayoutProps> = ({
                 userName={userName}
                 onAdminClick={onAdminClick}
                 onHomeClick={onHomeClick}
+                onViewGallery={onViewGallery}
+                onViewAbout={onViewAbout}
                 isLoginPage={isLoginPage}
                 isRegistrationPage={isRegistrationPage}
             />
@@ -47,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </div>
             </main>
 
-            <Footer />
+            <Footer onViewAbout={onViewAbout} />
         </div>
     );
 };

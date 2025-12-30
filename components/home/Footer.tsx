@@ -1,7 +1,11 @@
 import React from 'react';
 import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin } from 'lucide-react';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+    onViewAbout?: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onViewAbout }) => {
     return (
         <footer id="footer" className="bg-light-card dark:bg-dark-card border-t border-light-border dark:border-dark-border pt-16 pb-8 transition-colors duration-300">
             <div className="container mx-auto px-4">
@@ -36,13 +40,24 @@ const Footer: React.FC = () => {
                     <div>
                         <h4 className="text-lg font-bold text-light-text-primary dark:text-dark-text-primary mb-6 font-heading">Quick Links</h4>
                         <ul className="space-y-3">
-                            {['About Us', 'Events', 'Mentorship', 'Careers', 'Contact'].map((item) => (
-                                <li key={item}>
-                                    <a href="#" className="text-light-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors">
-                                        {item}
-                                    </a>
-                                </li>
-                            ))}
+                            <li>
+                                <button 
+                                    onClick={onViewAbout} 
+                                    className="text-light-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
+                                >
+                                    About Us
+                                </button>
+                            </li>
+                            <li>
+                                <a href="#gallery" className="text-light-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors">
+                                    Events
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#footer" className="text-light-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors">
+                                    Contact
+                                </a>
+                            </li>
                         </ul>
                     </div>
 
@@ -56,11 +71,11 @@ const Footer: React.FC = () => {
                             </li>
                             <li className="flex items-center space-x-3 text-light-text-secondary dark:text-dark-text-secondary">
                                 <Phone className="w-5 h-5 text-primary shrink-0" />
-                                <span>+91 98765 43210</span>
+                                <span>+91 90436 72733</span>
                             </li>
                             <li className="flex items-center space-x-3 text-light-text-secondary dark:text-dark-text-secondary">
                                 <Mail className="w-5 h-5 text-primary shrink-0" />
-                                <span>contact@dteaa.org</span>
+                                <span>toolanddie.aluminies@gmail.com</span>
                             </li>
                         </ul>
                     </div>

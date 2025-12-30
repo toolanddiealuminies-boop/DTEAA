@@ -10,11 +10,14 @@ interface NavbarProps {
     userName?: string;
     onAdminClick?: () => void;
     onHomeClick?: () => void;
+    onViewGallery?: () => void;
+    onViewAbout?: () => void;
     isLoginPage?: boolean;
     isRegistrationPage?: boolean;
+    hideContact?: boolean;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLogout, userName, onAdminClick, onHomeClick, isLoginPage, isRegistrationPage }) => {
+const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLogout, userName, onAdminClick, onHomeClick, onViewGallery, onViewAbout, isLoginPage, isRegistrationPage, hideContact }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -33,9 +36,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLo
 
     const navLinks = [
         { name: 'Home', href: '#', onClick: onHomeClick },
-        { name: 'About', href: '#about' },
-
-        { name: 'Gallery', href: '#gallery' },
+        { name: 'About', href: '#', onClick: onViewAbout },
+        { name: 'Gallery', href: '#', onClick: onViewGallery },
         { name: 'Contact', href: '#footer' },
     ];
 
@@ -44,6 +46,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLo
         filteredLinks = []; // Hide all links for registration page
     } else if (isLoginPage) {
         filteredLinks = navLinks.filter(link => link.name !== 'About' && link.name !== 'Gallery');
+    } else if (hideContact) {
+        filteredLinks = navLinks.filter(link => link.name !== 'Contact');
     }
 
     return (

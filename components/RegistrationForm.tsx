@@ -257,6 +257,88 @@ const AddressSelects: React.FC<{
     );
 };
 
+// Component for handling Country-State-City logic for Experience sections
+const ExperienceAddressSelects: React.FC<{
+    experienceType: 'employee' | 'entrepreneur';
+    index: number;
+    userData: UserData;
+    setUserData: React.Dispatch<React.SetStateAction<UserData>>;
+}> = ({ experienceType, index, userData, setUserData }) => {
+    const experience = userData.experience[experienceType][index];
+    const selectedCountry = experience?.country || '';
+    const selectedState = experience?.state || '';
+    const selectedCity = experience?.city || '';
+
+    const countryCode = useMemo(() => {
+        return Country.getAllCountries().find(c => c.name === selectedCountry)?.isoCode || '';
+    }, [selectedCountry]);
+
+    const stateCode = useMemo(() => {
+        if (!countryCode) return '';
+        return State.getStatesOfCountry(countryCode).find(s => s.name === selectedState)?.isoCode || '';
+    }, [countryCode, selectedState]);
+
+    const countries = useMemo(() => Country.getAllCountries(), []);
+    const states = useMemo(() => countryCode ? State.getStatesOfCountry(countryCode) : [], [countryCode]);
+    const cities = useMemo(() => stateCode ? City.getCitiesOfState(countryCode, stateCode) : [], [countryCode, stateCode]);
+
+    const handleChange = (field: 'country' | 'state' | 'city', value: string) => {
+        setUserData(prev => {
+            const newState = { ...prev };
+            const expArray = [...newState.experience[experienceType]];
+            expArray[index] = { ...expArray[index], [field]: value };
+            if (field === 'country') {
+                expArray[index].state = '';
+                expArray[index].city = '';
+            } else if (field === 'state') {
+                expArray[index].city = '';
+            }
+            newState.experience[experienceType] = expArray as any;
+            return newState;
+        });
+    };
+
+    return (
+        <>
+            <Select
+                label="Country"
+                id={`${experienceType}${index}Country`}
+                value={selectedCountry}
+                onChange={(e) => handleChange('country', e.target.value)}
+            >
+                <option value="">Select Country</option>
+                {countries.map(c => (
+                    <option key={c.isoCode} value={c.name}>{c.name}</option>
+                ))}
+            </Select>
+            <Select
+                label="State"
+                id={`${experienceType}${index}State`}
+                value={selectedState}
+                onChange={(e) => handleChange('state', e.target.value)}
+                disabled={!countryCode}
+            >
+                <option value="">Select State</option>
+                {states.map(s => (
+                    <option key={s.isoCode} value={s.name}>{s.name}</option>
+                ))}
+            </Select>
+            <Select
+                label="City"
+                id={`${experienceType}${index}City`}
+                value={selectedCity}
+                onChange={(e) => handleChange('city', e.target.value)}
+                disabled={!stateCode}
+            >
+                <option value="">Select City</option>
+                {cities.map(c => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+            </Select>
+        </>
+    );
+};
+
 const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserData, currentStep, setCurrentStep, onRegister }) => {
     const [errors, setErrors] = useState<FormErrors>({});
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
@@ -760,9 +842,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                         <Input label="Designation" value={exp.designation} onChange={handleExperienceChange('employee', index, 'designation')} />
                                         <Input label="Start Date" type="date" value={exp.startDate} onChange={handleExperienceChange('employee', index, 'startDate')} />
                                         <Input label="End Date" type="date" value={exp.endDate} onChange={handleExperienceChange('employee', index, 'endDate')} disabled={exp.isCurrentEmployer} />
-                                        <Input label="City" value={exp.city} onChange={handleExperienceChange('employee', index, 'city')} />
-                                        <Input label="State" value={exp.state} onChange={handleExperienceChange('employee', index, 'state')} />
-                                        <Input label="Country" value={exp.country} onChange={handleExperienceChange('employee', index, 'country')} />
+                                        <ExperienceAddressSelects experienceType="employee" index={index} userData={userData} setUserData={setUserData} />
                                     </div>
                                     <Checkbox label="I currently work here" checked={exp.isCurrentEmployer} onChange={handleExperienceChange('employee', index, 'isCurrentEmployer')} />
                                     <button
@@ -788,9 +868,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                                         <Input label="Company Name" value={exp.companyName} onChange={handleExperienceChange('entrepreneur', index, 'companyName')} />
                                         <Input label="Nature of Business" value={exp.natureOfBusiness} onChange={handleExperienceChange('entrepreneur', index, 'natureOfBusiness')} />
-                                        <Input label="City" value={exp.city} onChange={handleExperienceChange('entrepreneur', index, 'city')} />
-                                        <Input label="State" value={exp.state} onChange={handleExperienceChange('entrepreneur', index, 'state')} />
-                                        <Input label="Country" value={exp.country} onChange={handleExperienceChange('entrepreneur', index, 'country')} />
+                                        <ExperienceAddressSelects experienceType="entrepreneur" index={index} userData={userData} setUserData={setUserData} />
                                     </div>
                                     <button
                                         type="button"
