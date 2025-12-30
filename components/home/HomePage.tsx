@@ -1,5 +1,6 @@
 import React from 'react';
 import Hero from './Hero';
+import EventBanner from './EventBanner';
 import About from './About';
 import OrganizationChart from './OrganizationChart';
 import Gallery from './Gallery';
@@ -14,7 +15,8 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick, onViewGallery, onView
     return (
         <div className="font-sans text-gray-900 bg-transparent">
             {/* Navbar handled by Global Layout */}
-            <Hero onJoinClick={onLoginClick} />
+            <Hero onJoinClick={onLoginClick} onLearnMoreClick={onViewAbout} />
+            <EventBanner onActionClick={onLoginClick} />
             <About />
             <OrganizationChart />
             <Gallery onViewGallery={onViewGallery} />

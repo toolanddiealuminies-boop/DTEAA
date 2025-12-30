@@ -101,11 +101,11 @@ interface RegistrationFormProps {
     setUserData: React.Dispatch<React.SetStateAction<UserData>>;
     currentStep: number;
     setCurrentStep: (step: number) => void;
-    onRegister: (receiptFile: File) => void;
+    onRegister: (receiptFile: File | null) => void;
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-    const steps = ['Personal', 'Contact', 'Experience', 'Review', 'Payment'];
+    const steps = ['Personal', 'Contact', 'Experience', 'Review'];
     return (
         <div className="mb-8">
             {/* Desktop Stepper */}
@@ -343,6 +343,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
     const [errors, setErrors] = useState<FormErrors>({});
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [isAlumniMeet, setIsAlumniMeet] = useState(false);
     const [showSpecialization, setShowSpecialization] = useState(!!userData.personal.highestQualification);
 
     // Hydrate from localStorage if userData is empty (defensive).
@@ -652,16 +653,14 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             } catch (e) {
                 console.warn('Could not persist form to localStorage', e);
             }
-            setCurrentStep(Math.min(5, currentStep + 1));
+            // Cap at 4 (Review)
+            setCurrentStep(Math.min(4, currentStep + 1));
         }
     };
 
     const handleSubmit = () => {
-        if (receiptFile) {
-            onRegister(receiptFile);
-        } else {
-            setErrors(prev => ({ ...prev, paymentReceipt: "A payment receipt is required to register." }));
-        }
+        // Direct submission without payment receipt
+        onRegister(null);
     };
 
     const renderStep = () => {
@@ -748,11 +747,11 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
             case 2: // Contact Details
                 return (
                     <div className="space-y-6 animate-fade-in-right">
-                        <h4 className="text-xl font-semibold text-light-text-primary dark:text-dark-text-primary mb-4">Contact Details</h4>
+                        <h4 className="text-xl font-semibold text-light-text-primary dark:text-dark-text-primary mb-4">Contact Information</h4>
 
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md border border-gray-100 dark:border-gray-800 space-y-4">
                             <div>
-                                <h5 className="font-semibold text-primary mb-2">Personal Information</h5>
+                                <h5 className="font-semibold text-primary mb-2">Address Details</h5>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                                     <AddressSelects
                                         addressType="presentAddress"
@@ -1222,12 +1221,12 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
                 <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between">
                         <button type="button" onClick={prevStep} disabled={currentStep === 1} className="px-4 py-2 text-sm font-medium text-light-text-primary dark:text-dark-text-primary bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50">Back</button>
-                        {currentStep < 5 ? (
+                        {currentStep < 4 ? (
                             <button type="button" onClick={nextStep} className="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-md shadow-sm hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                                {currentStep === 4 ? 'Proceed to Payment' : 'Next'}
+                                Next
                             </button>
                         ) : (
-                            <button type="button" onClick={handleSubmit} disabled={!receiptFile} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            <button type="button" onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                                 Submit & Register
                             </button>
                         )}

@@ -11,6 +11,7 @@ import ProfilePage from '../ProfilePage';
 import Footer from '../home/Footer';
 import { supabase } from '../../lib/supabaseClient';
 import type { UserData } from '../../types';
+import EventRegistrationModal from './EventRegistrationModal';
 
 interface DashboardProps {
   userData: UserData;
@@ -20,28 +21,27 @@ interface DashboardProps {
 
 // Mock events data - Replace with actual API call
 const mockEvents: Event[] = [
-//   Uncomment below to test with events
-//   {
-//     id: '1',
-//     title: 'Annual Alumni Meet 2025',
-//     date: '2025-02-15',
-//     location: 'DTE Campus, Dindigul',
-//     description: 'Join us for our annual gathering of alumni.',
-//   },
-//   {
-//     id: '2',
-//     title: 'Career Networking Session',
-//     date: '2025-01-20',
-//     location: 'Virtual Event',
-//     description: 'Connect with fellow alumni and explore opportunities.',
-//   },
-//   {
-//     id: '3',
-//     title: 'Tech Talk: AI in Manufacturing',
-//     date: '2025-01-25',
-//     location: 'Auditorium, Block A',
-//     description: 'Expert session on AI applications.',
-//   },
+  {
+    id: 'alumni-meet-2026',
+    title: 'Alumni Meet 2026',
+    date: '2026-01-25',
+    location: 'Institute of Tool Engineering, Dindigul',
+    description: 'Join us for a day of nostalgia, networking, and celebration.',
+  },
+  // {
+  //   id: '2',
+  //   title: 'Career Networking Session',
+  //   date: '2025-01-20',
+  //   location: 'Virtual Event',
+  //   description: 'Connect with fellow alumni and explore opportunities.',
+  // },
+  // {
+  //   id: '3',
+  //   title: 'Tech Talk: AI in Manufacturing',
+  //   date: '2025-01-25',
+  //   location: 'Auditorium, Block A',
+  //   description: 'Expert session on AI applications.',
+  // },
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpdate }) => {
@@ -49,6 +49,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
   const [events] = useState<Event[]>(mockEvents);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [localUserData, setLocalUserData] = useState<UserData>(userData);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const handleViewDirectory = () => {
     setActiveTab('directory');
@@ -70,12 +72,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
     try {
       // Upload profile photo if it's a base64 string (new upload)
       let profilePhotoUrl = updatedData.personal.profilePhoto;
-      
+
       if (profilePhotoUrl && profilePhotoUrl.startsWith('data:')) {
         const response = await fetch(profilePhotoUrl);
         const blob = await response.blob();
         const photoFileName = `${updatedData.id}/profile_${Date.now()}.jpg`;
-        
+
         const { error: photoUploadError } = await supabase.storage
           .from('photos')
           .upload(photoFileName, blob, {
@@ -124,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         },
       };
       setLocalUserData(newUserData);
-      
+
       // Notify parent component
       if (onUserDataUpdate) {
         onUserDataUpdate(newUserData);
@@ -143,8 +145,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
   };
 
   const handleEventDetails = (eventId: string) => {
-    console.log('View event details:', eventId);
-    setActiveTab('events');
+    if (eventId === 'alumni-meet-2026') {
+      setSelectedEventId(eventId);
+      setIsEventModalOpen(true);
+    } else {
+      console.log('View event details:', eventId);
+      setActiveTab('events');
+    }
   };
 
   const handleBrowseAllEvents = () => {
@@ -295,6 +302,16 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
       </main>
 
       <Footer />
+
+      <EventRegistrationModal
+        isOpen={isEventModalOpen}
+        onClose={() => setIsEventModalOpen(false)}
+        userId={localUserData.id}
+        onSuccess={() => {
+          // Optional: Show success toast or refresh participation status
+          alert('Successfully registered for Alumni Meet 2026!');
+        }}
+      />
     </div>
   );
 };

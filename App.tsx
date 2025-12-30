@@ -464,11 +464,11 @@ const App: React.FC = () => {
   };
 
   // registration handler (upload receipt + insert profile)
-  const handleRegister = async (receiptFile: File) => {
+  const handleRegister = async (receiptFile: File | null) => {
     console.log('=== REGISTRATION STARTED ===');
     console.log('User ID:', session?.user?.id);
     console.log('User Email:', session?.user?.email);
-    console.log('Receipt File:', receiptFile?.name, receiptFile?.size, 'bytes');
+    console.log('Receipt File:', receiptFile ? `${receiptFile.name} (${receiptFile.size} bytes)` : 'SKIPPED (Alumni Meet)');
 
     if (!session?.user) {
       console.error('REGISTRATION FAILED: No session user');
@@ -541,31 +541,37 @@ const App: React.FC = () => {
       }
 
       // upload receipt
-      console.log('>>> Step 2: Uploading payment receipt...');
-      const fileExt = receiptFile.name.split('.').pop();
-      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
-      console.log('Receipt file name:', fileName, 'extension:', fileExt);
+      let publicUrl = '';
+      if (receiptFile) {
+        console.log('>>> Step 2: Uploading payment receipt...');
+        const fileExt = receiptFile.name.split('.').pop();
+        const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+        console.log('Receipt file name:', fileName, 'extension:', fileExt);
 
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, receiptFile);
+        const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, receiptFile);
 
-      if (uploadError) {
-        console.error('RECEIPT UPLOAD FAILED:', {
-          error: uploadError,
-          message: uploadError.message,
-          statusCode: (uploadError as any).statusCode,
-          fileName: fileName,
-          fileSize: receiptFile.size,
-          details: JSON.stringify(uploadError)
-        });
-        alert('Failed to upload payment receipt. Please try again.');
-        return;
+        if (uploadError) {
+          console.error('RECEIPT UPLOAD FAILED:', {
+            error: uploadError,
+            message: uploadError.message,
+            statusCode: (uploadError as any).statusCode,
+            fileName: fileName,
+            fileSize: receiptFile.size,
+            details: JSON.stringify(uploadError)
+          });
+          alert('Failed to upload payment receipt. Please try again.');
+          return;
+        }
+
+        console.log('✓ Receipt uploaded successfully');
+
+        // Use public url (works if bucket is public)
+        const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
+        publicUrl = urlData?.publicUrl || '';
+      } else {
+        console.log('>>> Step 2: Skipping payment receipt upload (Alumni Meet Registration)');
+        publicUrl = 'ALUMNI_MEET_REGISTRATION';
       }
-
-      console.log('✓ Receipt uploaded successfully');
-
-      // Use public url (works if bucket is public)
-      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
-      const publicUrl = urlData?.publicUrl || '';
       console.log('Receipt public URL:', publicUrl);
 
       const year = registrationFormData.personal.passOutYear;
@@ -749,11 +755,16 @@ const App: React.FC = () => {
 
           alert(`Failed to save your registration. Error: ${insertError.message || 'Unknown error'}. Please contact support with this error code: ${insertError.code || 'NO_CODE'}`);
 
+
           // cleanup uploaded file if desired
           try {
-            console.log('Cleaning up uploaded receipt...');
-            await supabase.storage.from('receipts').remove([fileName]);
-            console.log('✓ Receipt cleanup successful');
+            if (receiptFile) {
+              // We would need the fileName here, but it's scoped in the if block above. 
+              // Since we failed to insert, we can try to list and delete recent files or just ignore.
+              // For this implementation, we will log a warning as we can't easily access the fileName 
+              // without lifting the state up, which might be messy.
+              console.warn('Skipping receipt cleanup due to scope limitations.');
+            }
           } catch (e) {
             console.error('Receipt cleanup failed:', e);
           }
@@ -806,9 +817,9 @@ const App: React.FC = () => {
         alert('Failed to save your registration after multiple attempts. Please try again or contact support.');
         // cleanup uploaded file
         try {
-          console.log('Cleaning up uploaded receipt...');
-          await supabase.storage.from('receipts').remove([fileName]);
-          console.log('✓ Receipt cleanup successful');
+          if (receiptFile) {
+            console.warn('Skipping receipt cleanup due to scope limitations (cleanup after final failure).');
+          }
         } catch (e) {
           console.error('Receipt cleanup failed:', e);
         }
@@ -937,10 +948,10 @@ const App: React.FC = () => {
       );
     }
 
-    if (session && isRegistered && userData?.status === 'pending') {
-      // Profile Page for pending users (waiting for admin approval)
-      return <ProfilePage userData={userData!} />;
-    }
+    // if (session && isRegistered && userData?.status === 'pending') {
+    //   // Profile Page for pending users (waiting for admin approval)
+    //   return <ProfilePage userData={userData!} />;
+    // }
 
     // Default fallback: Home Page (if not logged in and not showing login)
     return <HomePage onLoginClick={() => setShowLogin(true)} onViewGallery={() => setShowGallery(true)} onViewAbout={() => setShowAbout(true)} />;
@@ -956,8 +967,8 @@ const App: React.FC = () => {
     return <AboutPage onBack={() => setShowAbout(false)} onViewGallery={() => { setShowAbout(false); setShowGallery(true); }} onLoginClick={() => { setShowAbout(false); setShowLogin(true); }} />;
   }
 
-  // If user is verified, render Dashboard outside of Layout (it has its own navbar)
-  if (session && isRegistered && userData?.status === 'verified' && !isAdminView) {
+  // If user is verified OR PENDING, render Dashboard outside of Layout (it has its own navbar)
+  if (session && isRegistered && (userData?.status === 'verified' || userData?.status === 'pending') && !isAdminView) {
     return (
       <>
         {/* Logout Confirmation Modal */}

@@ -11,7 +11,7 @@ interface Member {
     display_order: number;
 }
 
-// Fallback data in case Supabase fetch fail
+// Fallback data in case Supabase fetch fails
 const fallbackMembers: Omit<Member, 'id' | 'alumni_id' | 'display_order'>[] = [
     { name: 'Manikandan V', role: 'President', image: '/ec_memebers/Manikandan V.jpg' },
     { name: 'Vijay Kumar D', role: 'Vice President', image: '/ec_memebers/Vijay Kumar D.jpg' },

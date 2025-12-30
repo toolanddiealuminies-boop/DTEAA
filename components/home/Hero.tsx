@@ -3,9 +3,10 @@ import { motion } from 'framer-motion';
 
 interface HeroProps {
     onJoinClick: () => void;
+    onLearnMoreClick?: () => void;
 }
 
-const Hero: React.FC<HeroProps> = ({ onJoinClick }) => {
+const Hero: React.FC<HeroProps> = ({ onJoinClick, onLearnMoreClick }) => {
     return (
         <div className="relative h-screen w-full overflow-hidden">
             {/* Background Image */}
@@ -78,7 +79,10 @@ const Hero: React.FC<HeroProps> = ({ onJoinClick }) => {
                     >
                         Join Community
                     </button>
-                    <button className="px-8 py-4 rounded-md bg-transparent text-primary font-bold text-lg border-2 border-primary hover:bg-primary hover:text-white transition-all active:scale-95">
+                    <button
+                        onClick={onLearnMoreClick}
+                        className="px-8 py-4 rounded-md bg-transparent text-primary font-bold text-lg border-2 border-primary hover:bg-primary hover:text-white transition-all active:scale-95"
+                    >
                         Learn More
                     </button>
                 </motion.div>
