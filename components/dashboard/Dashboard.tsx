@@ -91,31 +91,112 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         }
       }
 
-      // Update profile in database
-      const { error } = await supabase
+      // Update normalized tables
+      // 1. Update profiles table
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          personal: {
-            ...updatedData.personal,
-            profilePhoto: profilePhotoUrl,
-          },
-          profile_photo: profilePhotoUrl,
-          contact: updatedData.contact,
-          experience: updatedData.experience,
-          privacy: updatedData.privacy || {
-            showEmail: true,
-            showPhone: false,
-            showCompany: false,
-            showLocation: false,
-          },
-        })
+        .update({ profile_photo: profilePhotoUrl })
         .eq('id', updatedData.id);
 
-      if (error) {
-        console.error('Profile update error:', error);
-        alert(`Failed to update profile: ${error.message}`);
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        alert(`Failed to update profile: ${profileError.message}`);
         return;
       }
+
+      // 2. Update personal_details table
+      await supabase
+        .from('personal_details')
+        .update({
+          first_name: updatedData.personal.firstName,
+          last_name: updatedData.personal.lastName,
+          pass_out_year: updatedData.personal.passOutYear,
+          dob: updatedData.personal.dob || null,
+          blood_group: updatedData.personal.bloodGroup,
+          email: updatedData.personal.email,
+          alt_email: updatedData.personal.altEmail,
+          highest_qualification: updatedData.personal.highestQualification,
+          specialization: updatedData.personal.specialization,
+        })
+        .eq('user_id', updatedData.id);
+
+      // 3. Update contact_details table
+      await supabase
+        .from('contact_details')
+        .update({
+          present_city: updatedData.contact.presentAddress.city,
+          present_state: updatedData.contact.presentAddress.state,
+          present_pincode: updatedData.contact.presentAddress.pincode,
+          present_country: updatedData.contact.presentAddress.country,
+          permanent_city: updatedData.contact.permanentAddress.city,
+          permanent_state: updatedData.contact.permanentAddress.state,
+          permanent_pincode: updatedData.contact.permanentAddress.pincode,
+          permanent_country: updatedData.contact.permanentAddress.country,
+          same_as_present_address: updatedData.contact.sameAsPresentAddress,
+          mobile: updatedData.contact.mobile,
+          telephone: updatedData.contact.telephone,
+        })
+        .eq('user_id', updatedData.id);
+
+      // 4. Update employee_experiences (delete and re-insert)
+      await supabase.from('employee_experiences').delete().eq('user_id', updatedData.id);
+      if (updatedData.experience.employee.length > 0) {
+        const { data: profileData } = await supabase.from('profiles').select('alumni_id').eq('id', updatedData.id).single();
+        const alumniId = profileData?.alumni_id;
+        const employeeRows = updatedData.experience.employee.map(emp => ({
+          user_id: updatedData.id,
+          alumni_id: alumniId,
+          company_name: emp.companyName,
+          designation: emp.designation,
+          start_date: emp.startDate || null,
+          end_date: emp.endDate || null,
+          is_current_employer: emp.isCurrentEmployer,
+          city: emp.city,
+          state: emp.state,
+          country: emp.country,
+        }));
+        await supabase.from('employee_experiences').insert(employeeRows);
+      }
+
+      // 5. Update entrepreneur_experiences (delete and re-insert)
+      await supabase.from('entrepreneur_experiences').delete().eq('user_id', updatedData.id);
+      if (updatedData.experience.entrepreneur.length > 0) {
+        const { data: profileData } = await supabase.from('profiles').select('alumni_id').eq('id', updatedData.id).single();
+        const alumniId = profileData?.alumni_id;
+        const entrepreneurRows = updatedData.experience.entrepreneur.map(ent => ({
+          user_id: updatedData.id,
+          alumni_id: alumniId,
+          company_name: ent.companyName,
+          nature_of_business: ent.natureOfBusiness,
+          city: ent.city,
+          state: ent.state,
+          country: ent.country,
+        }));
+        await supabase.from('entrepreneur_experiences').insert(entrepreneurRows);
+      }
+
+      // 6. Update open_to_work_details
+      await supabase
+        .from('open_to_work_details')
+        .update({
+          is_open_to_work: updatedData.experience.isOpenToWork,
+          technical_skills: updatedData.experience.openToWorkDetails.technicalSkills,
+          certifications: updatedData.experience.openToWorkDetails.certifications,
+          soft_skills: updatedData.experience.openToWorkDetails.softSkills,
+          other: updatedData.experience.openToWorkDetails.other,
+        })
+        .eq('user_id', updatedData.id);
+
+      // 7. Update privacy_settings
+      await supabase
+        .from('privacy_settings')
+        .update({
+          show_email: updatedData.privacy?.showEmail ?? true,
+          show_phone: updatedData.privacy?.showPhone ?? false,
+          show_company: updatedData.privacy?.showCompany ?? false,
+          show_location: updatedData.privacy?.showLocation ?? false,
+        })
+        .eq('user_id', updatedData.id);
 
       // Update local state
       const newUserData = {
@@ -256,12 +337,105 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-light-card rounded-xl shadow-sm border border-light-border p-8 text-center"
+            className="space-y-8"
           >
-            <h2 className="text-2xl font-bold text-light-text-primary mb-4">Events</h2>
-            <p className="text-light-text-secondary">
-              No events scheduled at this time. Check back later for upcoming events!
-            </p>
+            <div>
+              <h1 className="text-3xl font-bold text-light-text-primary">Events</h1>
+              <p className="text-light-text-secondary mt-1">
+                Stay connected with your alumni network through events
+              </p>
+            </div>
+
+            {/* Upcoming Events */}
+            <div>
+              <h2 className="text-xl font-bold text-light-text-primary mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                Upcoming Events
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {events.filter(e => new Date(e.date) >= new Date()).map((event) => (
+                  <motion.div
+                    key={event.id}
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-light-card rounded-xl shadow-sm border border-light-border overflow-hidden"
+                  >
+                    <div className="bg-gradient-to-r from-[#003366] to-[#004080] p-4 text-white">
+                      <div className="text-3xl font-bold">{new Date(event.date).getDate()}</div>
+                      <div className="text-sm opacity-90">
+                        {new Date(event.date).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold text-light-text-primary mb-2">{event.title}</h3>
+                      <p className="text-sm text-light-text-secondary mb-3">{event.description}</p>
+                      <div className="flex items-center gap-2 text-sm text-light-text-secondary mb-4">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {event.location}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedEventId(event.id);
+                          setIsEventModalOpen(true);
+                        }}
+                        className="w-full py-3 rounded-lg bg-gradient-to-r from-[#E7A700] to-[#FFB800] text-white font-bold hover:shadow-lg transition-all"
+                      >
+                        Register Now
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+                {events.filter(e => new Date(e.date) >= new Date()).length === 0 && (
+                  <div className="col-span-full bg-light-card rounded-xl shadow-sm border border-light-border p-8 text-center">
+                    <p className="text-light-text-secondary">No upcoming events at this time.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Past Events */}
+            <div>
+              <h2 className="text-xl font-bold text-light-text-primary mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                Past Events
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {events.filter(e => new Date(e.date) < new Date()).map((event) => (
+                  <motion.div
+                    key={event.id}
+                    className="bg-light-card rounded-xl shadow-sm border border-light-border overflow-hidden opacity-75"
+                  >
+                    <div className="bg-gray-400 p-4 text-white">
+                      <div className="text-3xl font-bold">{new Date(event.date).getDate()}</div>
+                      <div className="text-sm opacity-90">
+                        {new Date(event.date).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold text-light-text-primary mb-2">{event.title}</h3>
+                      <p className="text-sm text-light-text-secondary mb-3">{event.description}</p>
+                      <div className="flex items-center gap-2 text-sm text-light-text-secondary">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {event.location}
+                      </div>
+                      <div className="mt-4 py-2 text-center text-sm text-gray-500 border-t border-light-border">
+                        Event Completed
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+                {events.filter(e => new Date(e.date) < new Date()).length === 0 && (
+                  <div className="col-span-full bg-light-card rounded-xl shadow-sm border border-light-border p-8 text-center">
+                    <p className="text-light-text-secondary">No past events to display.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
         );
 
@@ -307,6 +481,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         isOpen={isEventModalOpen}
         onClose={() => setIsEventModalOpen(false)}
         userId={localUserData.id}
+        alumniId={localUserData.alumniId}
         onSuccess={() => {
           // Optional: Show success toast or refresh participation status
           alert('Successfully registered for Alumni Meet 2026!');

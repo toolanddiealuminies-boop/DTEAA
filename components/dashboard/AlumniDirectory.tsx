@@ -173,23 +173,136 @@ const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({ currentUserId, onView
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      // Fetch all verified profiles (including current user for now to test)
-      const { data, error } = await supabase
+      // Fetch all verified profiles from normalized tables
+      const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, personal, contact, experience, privacy, status')
+        .select('id, alumni_id, profile_photo, status')
         .eq('status', 'verified');
 
-      if (error) {
-        console.error('Error fetching members:', error);
+      if (profileError) {
+        console.error('Error fetching profiles:', profileError);
         setMembers([]);
         return;
       }
 
+      if (!profiles || profiles.length === 0) {
+        setMembers([]);
+        return;
+      }
+
+      // Fetch related data for all verified profiles
+      const userIds = profiles.map(p => p.id);
+      
+      const [personalRes, contactRes, employeeRes, entrepreneurRes, openToWorkRes, privacyRes] = await Promise.all([
+        supabase.from('personal_details').select('*').in('user_id', userIds),
+        supabase.from('contact_details').select('*').in('user_id', userIds),
+        supabase.from('employee_experiences').select('*').in('user_id', userIds),
+        supabase.from('entrepreneur_experiences').select('*').in('user_id', userIds),
+        supabase.from('open_to_work_details').select('*').in('user_id', userIds),
+        supabase.from('privacy_settings').select('*').in('user_id', userIds),
+      ]);
+
+      // Map data by user_id for quick lookup
+      const personalMap = new Map((personalRes.data || []).map(p => [p.user_id, p]));
+      const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
+      const privacyMap = new Map((privacyRes.data || []).map(p => [p.user_id, p]));
+      const openToWorkMap = new Map((openToWorkRes.data || []).map(o => [o.user_id, o]));
+      
+      // Group experiences by user_id
+      const employeeMap = new Map<string, any[]>();
+      (employeeRes.data || []).forEach(e => {
+        if (!employeeMap.has(e.user_id)) employeeMap.set(e.user_id, []);
+        employeeMap.get(e.user_id)!.push(e);
+      });
+      const entrepreneurMap = new Map<string, any[]>();
+      (entrepreneurRes.data || []).forEach(e => {
+        if (!entrepreneurMap.has(e.user_id)) entrepreneurMap.set(e.user_id, []);
+        entrepreneurMap.get(e.user_id)!.push(e);
+      });
+
+      // Combine into member objects
+      const membersData = profiles.map(profile => {
+        const personal = personalMap.get(profile.id);
+        const contact = contactMap.get(profile.id);
+        const privacy = privacyMap.get(profile.id);
+        const openToWork = openToWorkMap.get(profile.id);
+        const employees = employeeMap.get(profile.id) || [];
+        const entrepreneurs = entrepreneurMap.get(profile.id) || [];
+
+        return {
+          id: profile.id,
+          status: profile.status,
+          personal: {
+            firstName: personal?.first_name || '',
+            lastName: personal?.last_name || '',
+            passOutYear: personal?.pass_out_year || '',
+            dob: personal?.dob || '',
+            bloodGroup: personal?.blood_group || '',
+            email: personal?.email || '',
+            altEmail: personal?.alt_email || '',
+            highestQualification: personal?.highest_qualification || '',
+            specialization: personal?.specialization || '',
+            profilePhoto: profile.profile_photo || '',
+          },
+          contact: {
+            presentAddress: {
+              city: contact?.present_city || '',
+              state: contact?.present_state || '',
+              pincode: contact?.present_pincode || '',
+              country: contact?.present_country || '',
+            },
+            permanentAddress: {
+              city: contact?.permanent_city || '',
+              state: contact?.permanent_state || '',
+              pincode: contact?.permanent_pincode || '',
+              country: contact?.permanent_country || '',
+            },
+            sameAsPresentAddress: contact?.same_as_present_address || false,
+            mobile: contact?.mobile || '',
+            telephone: contact?.telephone || '',
+          },
+          experience: {
+            employee: employees.map((e: any) => ({
+              id: e.id,
+              companyName: e.company_name || '',
+              designation: e.designation || '',
+              startDate: e.start_date || '',
+              endDate: e.end_date || '',
+              isCurrentEmployer: e.is_current_employer || false,
+              city: e.city || '',
+              state: e.state || '',
+              country: e.country || '',
+            })),
+            entrepreneur: entrepreneurs.map((e: any) => ({
+              id: e.id,
+              companyName: e.company_name || '',
+              natureOfBusiness: e.nature_of_business || '',
+              city: e.city || '',
+              state: e.state || '',
+              country: e.country || '',
+            })),
+            isOpenToWork: openToWork?.is_open_to_work || false,
+            openToWorkDetails: {
+              technicalSkills: openToWork?.technical_skills || '',
+              certifications: openToWork?.certifications || '',
+              softSkills: openToWork?.soft_skills || '',
+              other: openToWork?.other || '',
+            },
+          },
+          privacy: {
+            showEmail: privacy?.show_email ?? true,
+            showPhone: privacy?.show_phone ?? false,
+            showCompany: privacy?.show_company ?? false,
+            showLocation: privacy?.show_location ?? false,
+          },
+        };
+      });
+
       // Filter out current user from display (but keep for testing if alone)
-      const otherMembers = data?.filter(m => m.id !== currentUserId) || [];
+      const otherMembers = membersData.filter(m => m.id !== currentUserId);
       
       // If no other members, show current user's profile as demo
-      setMembers(otherMembers.length > 0 ? otherMembers : data || []);
+      setMembers(otherMembers.length > 0 ? otherMembers : membersData);
     } catch (err) {
       console.error('Fetch error:', err);
       setMembers([]);

@@ -122,33 +122,45 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   const fetchEventRegistrations = async () => {
     setLoadingEvents(true);
     try {
-      const { data, error } = await supabase
+      // Fetch event registrations with alumni_id
+      const { data: registrations, error } = await supabase
         .from('event_registrations')
-        .select(`
-          *,
-          profiles:user_id (
-            personal,
-            contact,
-            alumni_id
-          )
-        `)
+        .select('*')
         .eq('event_id', 'alumni-meet-2026')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      if (!registrations || registrations.length === 0) {
+        setEventRegistrations([]);
+        return;
+      }
+
+      // Fetch personal and contact details for all registered users
+      const userIds = registrations.map(r => r.user_id);
+      
+      const [personalRes, contactRes, profilesRes] = await Promise.all([
+        supabase.from('personal_details').select('user_id, first_name, last_name').in('user_id', userIds),
+        supabase.from('contact_details').select('user_id, mobile').in('user_id', userIds),
+        supabase.from('profiles').select('id, alumni_id').in('id', userIds),
+      ]);
+
+      const personalMap = new Map((personalRes.data || []).map(p => [p.user_id, p]));
+      const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
+      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
+
       // Transform data for easier usage
-      const transformed = (data || []).map((reg: any) => {
-        // Safe access to nested properties
-        const personal = reg.profiles?.personal || {};
-        const contact = reg.profiles?.contact || {};
+      const transformed = registrations.map((reg: any) => {
+        const personal = personalMap.get(reg.user_id);
+        const contact = contactMap.get(reg.user_id);
+        const profile = profileMap.get(reg.user_id);
 
         return {
           ...reg,
-          firstName: personal.firstName || 'N/A',
-          lastName: personal.lastName || '',
-          mobile: contact.mobile || 'N/A',
-          alumniId: reg.profiles?.alumni_id || 'Pending',
+          firstName: personal?.first_name || 'N/A',
+          lastName: personal?.last_name || '',
+          mobile: contact?.mobile || 'N/A',
+          alumniId: profile?.alumni_id || 'Pending',
         };
       });
 

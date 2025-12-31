@@ -6,10 +6,11 @@ interface EventRegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
     userId: string;
+    alumniId: string;
     onSuccess: () => void;
 }
 
-const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen, onClose, userId, onSuccess }) => {
+const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen, onClose, userId, alumniId, onSuccess }) => {
     const [attending, setAttending] = useState<boolean | null>(null);
     const [mealPreference, setMealPreference] = useState<'Veg' | 'Non-Veg'>('Veg');
     const [totalParticipants, setTotalParticipants] = useState(1);
@@ -40,6 +41,7 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                 .from('event_registrations')
                 .upsert({
                     user_id: userId,
+                    alumni_id: alumniId,
                     event_id: 'alumni-meet-2026',
                     attending: attending,
                     meal_preference: attending ? mealPreference : null,
