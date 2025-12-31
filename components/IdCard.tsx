@@ -10,15 +10,15 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const formatAddress = () => {
+    // Use present address for the ID card
     const parts = [
-      userData.contact.address,
-      userData.contact.city,
-      userData.contact.state,
-      userData.contact.country
+      userData.contact.presentAddress?.city,
+      userData.contact.presentAddress?.state,
+      userData.contact.presentAddress?.country
     ].filter(Boolean);
     
     const addressText = parts.join(', ');
-    return userData.contact.pincode ? `${addressText} - ${userData.contact.pincode}` : addressText;
+    return userData.contact.presentAddress?.pincode ? `${addressText} - ${userData.contact.presentAddress.pincode}` : addressText;
   };
 
   const handleFlip = () => {
@@ -90,13 +90,42 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
       ctx.stroke();
       ctx.restore();
       
+      // Load and draw logo
+      const logo = new Image();
+      logo.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve) => {
+        logo.onload = () => {
+          const logoSize = 50;
+          const logoX = 25;
+          const logoY = 20;
+          
+          // Draw white circle background for logo
+          ctx.save();
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          ctx.beginPath();
+          ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Draw logo
+          ctx.beginPath();
+          ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2 - 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
+          ctx.restore();
+          
+          resolve();
+        };
+        logo.onerror = () => resolve(); // Continue even if logo fails to load
+        logo.src = '/logo/dteaa_logo.jpeg';
+      });
+      
       // Front text
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
       ctx.font = 'bold 20px Arial, sans-serif';
-      ctx.fillText('Dindigul Tool Engineering', cardWidth / 2, 45);
+      ctx.fillText('Dindigul Tool Engineering', cardWidth / 2 + 20, 45);
       ctx.font = 'bold 14px Arial, sans-serif';
-      ctx.fillText('Alumni Association', cardWidth / 2, 65);
+      ctx.fillText('Alumni Association', cardWidth / 2 + 20, 65);
       
       // User info background
       ctx.save();
@@ -313,52 +342,67 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
             className="front-side absolute inset-0 w-full h-full rounded-xl shadow-2xl overflow-hidden"
             style={{ backfaceVisibility: 'hidden' }}
           >
-            <div className="bg-gradient-to-br from-[#E7A700] to-[#CF9500] p-6 h-full flex flex-col justify-between relative">
+            <div className="bg-gradient-to-br from-[#E7A700] to-[#CF9500] p-4 h-full relative">
               {/* Background Pattern */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-4 right-4 w-24 h-24 rounded-full border-2 border-white/20"></div>
                 <div className="absolute bottom-4 left-4 w-16 h-16 rounded-full border-2 border-white/20"></div>
               </div>
               
-              {/* Header */}
-              <div className="relative z-10">
-                <div className="text-center mb-6">
-                  <h3 className="text-white text-lg font-bold">Dindigul Tool Engineering</h3>
-                  <h4 className="text-white text-base font-semibold">Alumni Association</h4>
+              {/* Content */}
+              <div className="relative z-10 h-full flex flex-col">
+                {/* Logo and Header - Compact */}
+                <div className="flex items-start gap-2 mb-3">
+                  <div className="w-12 h-12 rounded-full bg-white/95 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img 
+                      src="/logo/dteaa_logo.jpeg" 
+                      alt="DTEAA Logo" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <h3 className="text-white text-base font-bold leading-tight">Dindigul Tool Engineering</h3>
+                    <h4 className="text-white text-sm font-semibold">Alumni Association</h4>
+                  </div>
                 </div>
                 
-                {/* Photo and Name */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {userData.personal.profilePhoto ? (
-                      <img 
-                        src={userData.personal.profilePhoto} 
-                        alt="Profile" 
-                        className="w-20 h-20 rounded-full object-cover border-4 border-white/80 shadow-lg"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-full bg-white/20 border-4 border-white/80 flex items-center justify-center shadow-lg">
-                        <span className="text-white text-2xl font-bold">
-                          {(userData.personal.firstName?.charAt(0) || '') + (userData.personal.lastName?.charAt(0) || '')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-white text-xl font-bold truncate">
-                      {userData.personal.firstName} {userData.personal.lastName}
-                    </h2>
-                    <p className="text-white/90 text-sm">Batch of {userData.personal.passOutYear}</p>
-                    <p className="text-white/80 text-sm mt-1">Blood Group: {userData.personal.bloodGroup}</p>
+                {/* User Info Section with Background */}
+                <div className="bg-white/15 rounded-lg p-3 mb-3 flex-1">
+                  <div className="flex items-start gap-3">
+                    {/* Profile Photo */}
+                    <div className="flex-shrink-0">
+                      {userData.personal.profilePhoto ? (
+                        <img 
+                          src={userData.personal.profilePhoto} 
+                          alt="Profile" 
+                          className="w-16 h-16 rounded-full object-cover border-3 border-white shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-white/25 border-3 border-white flex items-center justify-center shadow-lg">
+                          <span className="text-white text-xl font-bold">
+                            {(userData.personal.firstName?.charAt(0) || '') + (userData.personal.lastName?.charAt(0) || '')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* User Details */}
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-white text-lg font-bold leading-tight">
+                        {userData.personal.firstName} {userData.personal.lastName}
+                      </h2>
+                      <p className="text-white/95 text-sm mt-1">Batch of {userData.personal.passOutYear}</p>
+                      <p className="text-white/90 text-sm">Blood Group: {userData.personal.bloodGroup}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              {/* Footer */}
-              <div className="relative z-10">
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                  <p className="text-white text-lg font-bold text-center">
+                
+                {/* ID Section */}
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2.5">
+                  <p className="text-white text-base font-bold text-center">
                     ID: {userData.alumniId}
                   </p>
                 </div>

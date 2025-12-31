@@ -7,15 +7,16 @@ export interface EmployeeExperience {
   startDate: string;
   endDate: string;
   isCurrentEmployer: boolean;
+  city: string;
+  state: string;
+  country: string;
 }
 
 export interface EntrepreneurExperience {
   id: string;
   companyName: string;
   natureOfBusiness: string;
-  address: string;
   city: string;
-  pincode: string;
   state: string;
   country: string;
 }
@@ -27,11 +28,19 @@ export interface OpenToWorkDetails {
   other: string;
 }
 
+export interface PrivacySettings {
+  showEmail: boolean;
+  showPhone: boolean;
+  showCompany: boolean;
+  showLocation: boolean;
+}
+
 export interface UserData {
   id: string; // Corresponds to Supabase auth.users.id
   role: 'user' | 'admin';
   alumniId: string;
-  status: 'pending' | 'verified';
+  status: 'pending' | 'verified' | 'rejected';
+  rejectionComments?: string; // Comments explaining why the registration was rejected
   paymentReceipt: string; // Stores the public URL from Supabase Storage
   personal: {
     firstName: string;
@@ -46,11 +55,19 @@ export interface UserData {
     profilePhoto: string; // Base64 encoded image data
   };
   contact: {
-    address: string;
-    city: string;
-    state: string;
-    pincode: string;
-    country: string;
+    presentAddress: {
+      city: string;
+      state: string;
+      pincode: string;
+      country: string;
+    };
+    permanentAddress: {
+      city: string;
+      state: string;
+      pincode: string;
+      country: string;
+    };
+    sameAsPresentAddress: boolean;
     mobile: string;
     telephone: string;
   };
@@ -60,4 +77,5 @@ export interface UserData {
     isOpenToWork: boolean;
     openToWorkDetails: OpenToWorkDetails;
   };
+  privacy: PrivacySettings;
 }
