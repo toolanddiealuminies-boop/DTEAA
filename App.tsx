@@ -78,6 +78,7 @@ const App: React.FC = () => {
 
   const [registrationFormData, setRegistrationFormData] = useState<UserData>(initialUserData);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVerificationNotification, setShowVerificationNotification] = useState(false);
   const [showLogin, setShowLogin] = useState(false); // New state for Home Page vs Login
   const [showGallery, setShowGallery] = useState(false); // Gallery page state
@@ -609,6 +610,7 @@ const App: React.FC = () => {
 
   // registration handler (upload receipt + insert profile)
   const handleRegister = async (receiptFile: File | null) => {
+    setIsSubmitting(true);
     console.log('=== REGISTRATION STARTED ===');
     console.log('User ID:', session?.user?.id);
     console.log('User Email:', session?.user?.email);
@@ -616,6 +618,7 @@ const App: React.FC = () => {
 
     if (!session?.user) {
       console.error('REGISTRATION FAILED: No session user');
+      setIsSubmitting(false);
       return alert("You must be logged in to register.");
     }
 
@@ -623,6 +626,7 @@ const App: React.FC = () => {
       console.error('REGISTRATION FAILED: Missing pass out year');
       alert("Year of Pass Out is required to generate an ID.");
       setCurrentStep(1);
+      setIsSubmitting(false);
       return;
     }
 
@@ -1057,6 +1061,8 @@ const App: React.FC = () => {
 
       alert(`An unexpected error occurred during registration: ${unexpectedError?.message || 'Unknown error'}. Please check the console for details and contact support.`);
       console.log('=== END OF REGISTRATION (UNEXPECTED ERROR) ===');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1154,6 +1160,7 @@ const App: React.FC = () => {
           currentStep={5} // Go directly to payment step
           setCurrentStep={setCurrentStep}
           onRegister={handleRegister}
+          isSubmitting={isSubmitting}
         />
       );
     }
@@ -1166,6 +1173,7 @@ const App: React.FC = () => {
           currentStep={currentStep}
           setCurrentStep={setCurrentStep}
           onRegister={handleRegister}
+          isSubmitting={isSubmitting}
         />
       );
     }
