@@ -102,6 +102,7 @@ interface RegistrationFormProps {
     currentStep: number;
     setCurrentStep: (step: number) => void;
     onRegister: (receiptFile: File | null) => void;
+    isSubmitting?: boolean;
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
@@ -339,7 +340,7 @@ const ExperienceAddressSelects: React.FC<{
     );
 };
 
-const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserData, currentStep, setCurrentStep, onRegister }) => {
+const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserData, currentStep, setCurrentStep, onRegister, isSubmitting = false }) => {
     const [errors, setErrors] = useState<FormErrors>({});
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -1212,7 +1213,29 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ userData, setUserDa
     };
 
     return (
-        <div className="bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-xl shadow-2xl w-full border border-light-border dark:border-dark-border">
+        <div className="bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-xl shadow-2xl w-full border border-light-border dark:border-dark-border relative">
+            {/* Loading Overlay */}
+            {isSubmitting && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl">
+                    <div className="flex flex-col items-center space-y-4">
+                        {/* Spinner */}
+                        <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                        {/* Progress Text */}
+                        <div className="text-center">
+                            <h3 className="text-lg font-semibold text-light-text-primary dark:text-dark-text-primary">
+                                Submitting Registration
+                            </h3>
+                            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">
+                                Please wait while we process your registration...
+                            </p>
+                        </div>
+                        {/* Progress Bar */}
+                        <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+                        </div>
+                    </div>
+                </div>
+            )}
             <Stepper currentStep={currentStep - 1} />
             <form onSubmit={(e) => e.preventDefault()} className="min-h-[300px]">
                 <div className="mt-6">
