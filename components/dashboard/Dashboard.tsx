@@ -17,6 +17,7 @@ interface DashboardProps {
   userData: UserData;
   onLogout: () => void;
   onUserDataUpdate?: (updatedData: UserData) => void;
+  onHomeClick?: () => void;
 }
 
 // Mock events data - Replace with actual API call
@@ -44,13 +45,41 @@ const mockEvents: Event[] = [
   // },
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpdate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpdate, onHomeClick }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile'>('dashboard');
-  const [events] = useState<Event[]>(mockEvents);
+  const [events, setEvents] = useState<Event[]>(mockEvents);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [localUserData, setLocalUserData] = useState<UserData>(userData);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  const fetchRegistrations = async () => {
+    if (!userData.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .select('event_id, status')
+        .eq('user_id', userData.id);
+
+      if (data) {
+        const registrationMap = new Map(data.map((r: any) => [r.event_id, r.status]));
+
+        // Merge with mockEvents
+        const updatedEvents = mockEvents.map(event => ({
+          ...event,
+          registrationStatus: registrationMap.get(event.id) as any || null
+        }));
+        setEvents(updatedEvents);
+      }
+    } catch (err) {
+      console.error("Error fetching registrations:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchRegistrations();
+  }, [userData.id]);
 
   const handleViewDirectory = () => {
     setActiveTab('directory');
@@ -226,6 +255,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
   };
 
   const handleEventDetails = (eventId: string) => {
+    // If registered, maybe just show details or edit?
+    // For now, simple logic: if it's the specific event, open modal
     if (eventId === 'alumni-meet-2026') {
       setSelectedEventId(eventId);
       setIsEventModalOpen(true);
@@ -313,7 +344,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
             {/* Upcoming Events - Full Width */}
             <motion.div variants={itemVariants}>
               <UpcomingEventsSection
-                events={events}
+                events={events} // Pass state events
                 onViewDetails={handleEventDetails}
                 onBrowseAll={handleBrowseAllEvents}
               />
@@ -375,14 +406,30 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
                         </svg>
                         {event.location}
                       </div>
+
+                      {/* Add Status Badge logic here for Events Tab too if needed, or reuse component logic */}
+                      {event.registrationStatus === 'approved' && (
+                        <div className="mb-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                          Registered
+                        </div>
+                      )}
+                      {event.registrationStatus === 'pending' && (
+                        <div className="mb-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                          Pending Approval
+                        </div>
+                      )}
+
                       <button
                         onClick={() => {
                           setSelectedEventId(event.id);
                           setIsEventModalOpen(true);
                         }}
-                        className="w-full py-3 rounded-lg bg-gradient-to-r from-[#E7A700] to-[#FFB800] text-white font-bold hover:shadow-lg transition-all"
+                        className={`w-full py-3 rounded-lg font-bold transition-all ${event.registrationStatus
+                          ? 'bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : 'bg-gradient-to-r from-[#E7A700] to-[#FFB800] text-white hover:shadow-lg'
+                          }`}
                       >
-                        Register Now
+                        {event.registrationStatus ? 'View Details' : 'Register Now'}
                       </button>
                     </div>
                   </motion.div>
@@ -455,6 +502,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onLogout={onLogout}
+        onHomeClick={onHomeClick}
       />
 
       <main className="flex-grow pt-24 pb-8 px-4 sm:px-6 lg:px-8">
@@ -483,8 +531,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         userId={localUserData.id}
         alumniId={localUserData.alumniId}
         onSuccess={() => {
-          // Optional: Show success toast or refresh participation status
-          alert('Successfully registered for Alumni Meet 2026!');
+          fetchRegistrations(); // Refresh registration data
+          // alert('Successfully registered for Alumni Meet 2026!'); // Removed alert as modal shows success
         }}
       />
     </div>

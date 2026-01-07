@@ -54,11 +54,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`fixed w-full z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-light-card/95 backdrop-blur-md shadow-md py-3'
-          : 'bg-light-card py-4'
-      }`}
+      className={`fixed w-full z-50 transition-all duration-300 ${isScrolled
+        ? 'bg-light-card/95 backdrop-blur-md shadow-md py-3'
+        : 'bg-light-card py-4'
+        }`}
     >
       <div className="container mx-auto px-4 flex justify-between items-center">
         {/* Logo */}
@@ -79,15 +78,20 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-1">
+          <button
+            onClick={onHomeClick}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-light-text-secondary hover:bg-gray-100 hover:text-light-text-primary transition-all duration-200"
+          >
+            Home
+          </button>
           {navLinks.map((link) => (
             <button
               key={link.tab}
               onClick={() => onTabChange(link.tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                activeTab === link.tab
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-light-text-secondary hover:bg-gray-100 hover:text-light-text-primary'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === link.tab
+                ? 'bg-primary/10 text-primary'
+                : 'text-light-text-secondary hover:bg-gray-100 hover:text-light-text-primary'
+                }`}
             >
               {link.name}
             </button>
@@ -115,9 +119,8 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
               {userName}
             </span>
             <ChevronDown
-              className={`w-4 h-4 text-light-text-secondary transition-transform ${
-                isDropdownOpen ? 'rotate-180' : ''
-              }`}
+              className={`w-4 h-4 text-light-text-secondary transition-transform ${isDropdownOpen ? 'rotate-180' : ''
+                }`}
             />
           </button>
 
@@ -192,6 +195,15 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
                 Signed in as <span className="font-medium text-light-text-primary">{userName}</span>
               </div>
               <hr className="border-gray-100" />
+              <button
+                onClick={() => {
+                  onHomeClick && onHomeClick();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-light-text-primary hover:bg-gray-50 transition-all"
+              >
+                Home
+              </button>
               {navLinks.map((link) => (
                 <button
                   key={link.tab}
@@ -199,11 +211,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
                     onTabChange(link.tab);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === link.tab
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-light-text-primary hover:bg-gray-50'
-                  }`}
+                  className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === link.tab
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-light-text-primary hover:bg-gray-50'
+                    }`}
                 >
                   {link.name}
                 </button>

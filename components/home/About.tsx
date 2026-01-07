@@ -22,7 +22,7 @@ const About: React.FC = () => {
     ];
 
     return (
-        <section id="about" className="py-20 bg-light-bg dark:bg-dark-bg transition-colors duration-300">
+        <section id="about" className="py-12 bg-light-bg dark:bg-dark-bg transition-colors duration-300">
             <div className="container mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

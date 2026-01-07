@@ -15,6 +15,7 @@ interface LayoutProps {
     onViewAbout?: () => void;
     isLoginPage?: boolean;
     isRegistrationPage?: boolean;
+    onDashboardClick?: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -29,7 +30,8 @@ const Layout: React.FC<LayoutProps> = ({
     onViewGallery,
     onViewAbout,
     isLoginPage,
-    isRegistrationPage
+    isRegistrationPage,
+    onDashboardClick
 }) => {
     return (
         <div className="flex flex-col min-h-screen font-sans bg-light-bg text-light-text-primary transition-colors duration-300">
@@ -45,6 +47,7 @@ const Layout: React.FC<LayoutProps> = ({
                 onViewAbout={onViewAbout}
                 isLoginPage={isLoginPage}
                 isRegistrationPage={isRegistrationPage}
+                onDashboardClick={onDashboardClick}
             />
 
             <main className="flex-grow pt-24 px-4 sm:px-6 lg:px-8">

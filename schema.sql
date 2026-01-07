@@ -139,6 +139,9 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   attending BOOLEAN NOT NULL DEFAULT false,
   meal_preference TEXT CHECK (meal_preference IN ('Veg', 'Non-Veg')),
   total_participants INTEGER DEFAULT 1 CHECK (total_participants > 0),
+  payment_receipt TEXT,
+  amount_paid INTEGER,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   UNIQUE(user_id, event_id)
 );
@@ -348,6 +351,9 @@ CREATE POLICY "Users can update their own registrations"
 
 CREATE POLICY "Admins can view all registrations"
   ON event_registrations FOR SELECT USING (is_admin());
+
+CREATE POLICY "Admins can update all registrations"
+  ON event_registrations FOR UPDATE USING (is_admin());
 
 -- ============================================
 -- RLS POLICIES: EXECUTIVE COMMITTEE

@@ -138,7 +138,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
 
       // Fetch personal and contact details for all registered users
       const userIds = registrations.map(r => r.user_id);
-      
+
       const [personalRes, contactRes, profilesRes] = await Promise.all([
         supabase.from('personal_details').select('user_id, first_name, last_name').in('user_id', userIds),
         supabase.from('contact_details').select('user_id, mobile').in('user_id', userIds),
@@ -204,6 +204,47 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
 
     return { totalReg, totalPax, vegCount, nonVegCount };
   }, [eventRegistrations]);
+
+
+  const handleApproveEventRegistration = async (registrationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_registrations')
+        .update({ status: 'approved' })
+        .eq('id', registrationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setEventRegistrations(prev =>
+        prev.map(r => r.id === registrationId ? { ...r, status: 'approved' } : r)
+      );
+    } catch (err) {
+      console.error('Error approving registration:', err);
+      alert('Failed to approve registration');
+    }
+  };
+
+  const handleRejectEventRegistration = async (registrationId: string) => {
+    if (!confirm("Are you sure you want to reject this registration?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('event_registrations')
+        .update({ status: 'rejected' })
+        .eq('id', registrationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setEventRegistrations(prev =>
+        prev.map(r => r.id === registrationId ? { ...r, status: 'rejected' } : r)
+      );
+    } catch (err) {
+      console.error('Error rejecting registration:', err);
+      alert('Failed to reject registration');
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto mt-8 bg-white dark:bg-dark-card rounded-lg shadow-lg border border-light-border dark:border-dark-border relative z-10 transition-colors duration-200 overflow-hidden">
@@ -283,17 +324,19 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                     <th className="px-6 py-4 text-center">Attending</th>
                     <th className="px-6 py-4">Meal Pref</th>
                     <th className="px-6 py-4 text-center">Participants</th>
-                    <th className="px-6 py-4 text-right">Registered On</th>
+                    <th className="px-6 py-4">Receipt</th>
+                    <th className="px-6 py-4 text-center">Status</th>
+                    <th className="px-6 py-4 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {loadingEvents ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Loading registrations...</td>
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">Loading registrations...</td>
                     </tr>
                   ) : eventRegistrations.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No registrations yet.</td>
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No registrations yet.</td>
                     </tr>
                   ) : (
                     eventRegistrations.map((reg) => (
@@ -328,8 +371,55 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                         <td className="px-6 py-4 text-center font-semibold text-gray-900 dark:text-white">
                           {reg.total_participants}
                         </td>
-                        <td className="px-6 py-4 text-right text-gray-500">
-                          {new Date(reg.created_at).toLocaleDateString()}
+                        <td className="px-6 py-4">
+                          {reg.payment_receipt ? (
+                            <a href={reg.payment_receipt} target="_blank" rel="noopener noreferrer" className="block w-12 h-12">
+                              <img
+                                src={reg.payment_receipt}
+                                alt="Receipt"
+                                className="w-full h-full object-cover rounded border border-gray-200 dark:border-gray-700 hover:scale-110 transition-transform"
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {reg.status === 'approved' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              Approved
+                            </span>
+                          )}
+                          {reg.status === 'rejected' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                              Rejected
+                            </span>
+                          )}
+                          {(reg.status === 'pending' || !reg.status) && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {(!reg.status || reg.status === 'pending') && reg.attending && (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleApproveEventRegistration(reg.id)}
+                                className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                title="Approve"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              </button>
+                              <button
+                                onClick={() => handleRejectEventRegistration(reg.id)}
+                                className="p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                title="Reject"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))

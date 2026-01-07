@@ -83,6 +83,7 @@ const App: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false); // New state for Home Page vs Login
   const [showGallery, setShowGallery] = useState(false); // Gallery page state
   const [showAbout, setShowAbout] = useState(false); // About page state
+  const [showHomePage, setShowHomePage] = useState(false); // Home page state override
 
   // fetch profile by user id and update local state (normalized schema)
   const fetchUserProfile = async (userId: string) => {
@@ -218,7 +219,7 @@ const App: React.FC = () => {
 
       // Fetch related data for all profiles
       const userIds = profiles.map(p => p.id);
-      
+
       const [personalRes, contactRes, employeeRes, entrepreneurRes, openToWorkRes, privacyRes] = await Promise.all([
         supabase.from('personal_details').select('*').in('user_id', userIds),
         supabase.from('contact_details').select('*').in('user_id', userIds),
@@ -233,7 +234,7 @@ const App: React.FC = () => {
       const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
       const privacyMap = new Map((privacyRes.data || []).map(p => [p.user_id, p]));
       const openToWorkMap = new Map((openToWorkRes.data || []).map(o => [o.user_id, o]));
-      
+
       const employeeMap = new Map<string, any[]>();
       (employeeRes.data || []).forEach(e => {
         if (!employeeMap.has(e.user_id)) employeeMap.set(e.user_id, []);
@@ -835,7 +836,7 @@ const App: React.FC = () => {
           if (profileError) {
             const msg = (profileError as any).message || JSON.stringify(profileError);
             const isUniqueConflict = profileError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
-            
+
             if (isUniqueConflict && !isResubmission && attempt < MAX_ATTEMPTS) {
               console.log('\n⚠️ UNIQUE CONSTRAINT VIOLATION on profiles');
               await new Promise(r => setTimeout(r, 200 * attempt));
@@ -975,7 +976,7 @@ const App: React.FC = () => {
           console.log('   Status:', profileRes.status);
           console.log('   Email:', registrationFormData.personal.email);
           console.log('═══════════════════════════════════════');
-          
+
           insertedData = {
             ...profileRes,
             personal: registrationFormData.personal,
@@ -1198,7 +1199,7 @@ const App: React.FC = () => {
   }
 
   // If user is verified OR PENDING, render Dashboard outside of Layout (it has its own navbar)
-  if (session && isRegistered && (userData?.status === 'verified' || userData?.status === 'pending') && !isAdminView) {
+  if (session && isRegistered && (userData?.status === 'verified' || userData?.status === 'pending') && !isAdminView && !showHomePage) {
     return (
       <>
         {/* Logout Confirmation Modal */}
@@ -1211,7 +1212,11 @@ const App: React.FC = () => {
           onConfirm={confirmLogout}
           onCancel={() => setShowLogoutConfirmation(false)}
         />
-        <Dashboard userData={userData!} onLogout={handleLogoutClick} />
+        <Dashboard
+          userData={userData!}
+          onLogout={handleLogoutClick}
+          onHomeClick={() => setShowHomePage(true)}
+        />
       </>
     );
   }
@@ -1227,6 +1232,7 @@ const App: React.FC = () => {
       onHomeClick={() => {
         setShowLogin(false);
         setIsAdminView(false);
+        setShowHomePage(true);
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }}
@@ -1234,6 +1240,7 @@ const App: React.FC = () => {
       isRegistrationPage={isRegistration}
       onViewGallery={() => setShowGallery(true)}
       onViewAbout={() => setShowAbout(true)}
+      onDashboardClick={() => setShowHomePage(false)}
     >
       {/* Logout Confirmation Modal */}
       <ConfirmationModal

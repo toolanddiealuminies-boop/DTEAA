@@ -16,7 +16,6 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick, onViewGallery, onView
         <div className="font-sans text-gray-900 bg-transparent">
             {/* Navbar handled by Global Layout */}
             <Hero onJoinClick={onLoginClick} onLearnMoreClick={onViewAbout} />
-            <EventBanner onActionClick={onLoginClick} />
             <About />
             <OrganizationChart />
             <Gallery onViewGallery={onViewGallery} />

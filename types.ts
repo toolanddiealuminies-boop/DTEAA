@@ -79,3 +79,16 @@ export interface UserData {
   };
   privacy: PrivacySettings;
 }
+
+export interface EventRegistration {
+  id: string;
+  userId: string;
+  eventId: string;
+  attending: boolean;
+  mealPreference?: 'Veg' | 'Non-Veg';
+  totalParticipants?: number;
+  paymentReceipt?: string;
+  amountPaid?: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
