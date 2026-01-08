@@ -595,6 +595,62 @@ const App: React.FC = () => {
     }
   }, [userData, fetchAllUsers]);
 
+  // --- Browser History Sync (Fix for Back/Forward buttons) ---
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      console.log('Navigating to:', path);
+
+      // Reset all "page" states first
+      setShowLogin(false);
+      setShowGallery(false);
+      setShowAbout(false);
+      setShowHomePage(false); // Default to Main Logic
+
+      if (path === '/login') {
+        if (!session) setShowLogin(true);
+      } else if (path === '/gallery') {
+        setShowGallery(true);
+      } else if (path === '/about') {
+        setShowAbout(true);
+      } else if (path === '/admin') {
+        if (userData?.role === 'admin') setIsAdminView(true);
+      } else if (path === '/dashboard') {
+        if (session) setShowHomePage(false); // Triggers dashboard view
+      } else {
+        // Home or unknown -> Default view
+        if (session) setShowHomePage(true); // Explicit home for logged in
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Initial load handling (Deep linking support)
+    // We delay slightly to allow session to restore first
+    setTimeout(() => {
+      handlePopState();
+    }, 100);
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [session, userData?.role]); // Re-bind if auth state changes
+
+  // Update URL when State Changes
+  useEffect(() => {
+    let path = '/';
+    if (showGallery) path = '/gallery';
+    else if (showAbout) path = '/about';
+    else if (isAdminView) path = '/admin';
+    else if (showLogin && !session) path = '/login';
+    else if (session && !showHomePage && isRegistered) path = '/dashboard';
+    else path = '/';
+
+    // Only push if different to avoid noise/loops
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+  }, [showGallery, showAbout, isAdminView, showLogin, session, showHomePage, isRegistered]);
+  // -------------------------------------------------------------
+
   // logout
   const handleLogout = async () => {
     try {

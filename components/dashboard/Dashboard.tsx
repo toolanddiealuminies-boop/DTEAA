@@ -35,12 +35,56 @@ const mockEvents: Event[] = [
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpdate, onHomeClick }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile'>('dashboard');
+  // Initialize tab from URL query param or default to 'dashboard'
+  const getInitialTab = () => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ['dashboard', 'directory', 'events', 'profile'].includes(tab)) {
+      return tab as 'dashboard' | 'directory' | 'events' | 'profile';
+    }
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile'>(getInitialTab);
   const [events, setEvents] = useState<Event[]>(mockEvents);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [localUserData, setLocalUserData] = useState<UserData>(userData);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  // Sync state -> URL
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (activeTab === 'dashboard') {
+      params.delete('tab');
+    } else {
+      params.set('tab', activeTab);
+    }
+
+    // Construct new URL
+    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+
+    // Only push if changed to avoid loops/noise
+    if (window.location.search !== (params.toString() ? '?' + params.toString() : '')) {
+      window.history.pushState({}, '', newUrl);
+    }
+  }, [activeTab]);
+
+  // Sync URL -> State (Back/Forward support)
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['dashboard', 'directory', 'events', 'profile'].includes(tab)) {
+        setActiveTab(tab as any);
+      } else {
+        setActiveTab('dashboard');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Sponsorship State
   const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
