@@ -527,11 +527,24 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             />
                                             {receiptPreview ? (
-                                                <div className="relative">
+                                                <div className="relative group">
                                                     <img src={receiptPreview} alt="Receipt Preview" className="h-32 mx-auto object-contain rounded-md" />
                                                     <div className="mt-2 text-sm text-green-600 font-medium flex items-center justify-center gap-1">
                                                         <Check size={14} /> Receipt Selected
                                                     </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            setReceiptFile(null);
+                                                            setReceiptPreview(null);
+                                                        }}
+                                                        className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-md text-gray-500 hover:text-red-500 hover:bg-red-50 border border-gray-200 transition-all z-10"
+                                                        title="Remove receipt"
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2">

@@ -92,3 +92,13 @@ export interface EventRegistration {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }
+
+export interface EventSponsorship {
+  id: string;
+  userId: string;
+  eventId: string;
+  amount: number;
+  paymentReceipt?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}

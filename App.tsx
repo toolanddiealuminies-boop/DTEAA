@@ -1185,17 +1185,53 @@ const App: React.FC = () => {
     // }
 
     // Default fallback: Home Page (if not logged in and not showing login)
-    return <HomePage onLoginClick={() => setShowLogin(true)} onViewGallery={() => setShowGallery(true)} onViewAbout={() => setShowAbout(true)} />;
+    return <HomePage
+      onLoginClick={() => {
+        if (session) {
+          setShowHomePage(false); // Go to Dashboard
+        } else {
+          setShowLogin(true);
+        }
+      }}
+      onViewGallery={() => setShowGallery(true)}
+      onViewAbout={() => setShowAbout(true)}
+      userId={userData?.id}
+    />;
   };
 
   // If showing Gallery page
   if (showGallery) {
-    return <GalleryPage onBack={() => setShowGallery(false)} onViewAbout={() => { setShowGallery(false); setShowAbout(true); }} onLoginClick={() => { setShowGallery(false); setShowLogin(true); }} />;
+    return (
+      <GalleryPage
+        onBack={() => setShowGallery(false)}
+        onViewAbout={() => { setShowGallery(false); setShowAbout(true); }}
+        onLoginClick={() => { setShowGallery(false); setShowLogin(true); }}
+        isLoggedIn={!!session}
+        inputUserName={userData?.personal?.firstName}
+        userName={userData?.personal?.firstName}
+        onLogout={handleLogoutClick}
+        onDashboardClick={() => { setShowGallery(false); setShowHomePage(false); }}
+        isAdmin={userData?.role === 'admin'}
+        onAdminClick={() => { setShowGallery(false); setIsAdminView(true); }}
+      />
+    );
   }
 
   // If showing About page
   if (showAbout) {
-    return <AboutPage onBack={() => setShowAbout(false)} onViewGallery={() => { setShowAbout(false); setShowGallery(true); }} onLoginClick={() => { setShowAbout(false); setShowLogin(true); }} />;
+    return (
+      <AboutPage
+        onBack={() => setShowAbout(false)}
+        onViewGallery={() => { setShowAbout(false); setShowGallery(true); }}
+        onLoginClick={() => { setShowAbout(false); setShowLogin(true); }}
+        isLoggedIn={!!session}
+        userName={userData?.personal?.firstName}
+        onLogout={handleLogoutClick}
+        onDashboardClick={() => { setShowAbout(false); setShowHomePage(false); }}
+        isAdmin={userData?.role === 'admin'}
+        onAdminClick={() => { setShowAbout(false); setIsAdminView(true); }}
+      />
+    );
   }
 
   // If user is verified OR PENDING, render Dashboard outside of Layout (it has its own navbar)

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, ArrowRight, CheckCircle, Clock } from 'lucide-react'; // Added icons
+import { Calendar, MapPin, ArrowRight, CheckCircle, Clock, Heart } from 'lucide-react'; // Added icons
 import { Card, Button, EmptyState } from '../ui';
 
 export interface Event {
@@ -15,6 +15,7 @@ interface UpcomingEventsSectionProps {
   events: Event[];
   onViewDetails: (eventId: string) => void;
   onBrowseAll: () => void;
+  onSponsorClick: (eventId: string) => void;
 }
 
 const formatDate = (dateString: string): { day: string; month: string; year: string } => {
@@ -26,7 +27,7 @@ const formatDate = (dateString: string): { day: string; month: string; year: str
   };
 };
 
-const EventCard: React.FC<{ event: Event; onViewDetails: () => void }> = ({ event, onViewDetails }) => {
+const EventCard: React.FC<{ event: Event; onViewDetails: () => void; onSponsorClick?: (eventId: string) => void }> = ({ event, onViewDetails, onSponsorClick }) => {
   const { day, month } = formatDate(event.date);
 
   // Helper to render status badge
@@ -68,15 +69,28 @@ const EventCard: React.FC<{ event: Event; onViewDetails: () => void }> = ({ even
           </div>
         </div>
       </div>
-      <Button
-        variant={event.registrationStatus ? "outline" : "ghost"} // Change style if registered
-        size="sm"
-        onClick={onViewDetails}
-        icon={!event.registrationStatus ? <ArrowRight className="w-4 h-4" /> : undefined}
-        className="w-full sm:w-auto sm:self-center flex-shrink-0"
-      >
-        {event.registrationStatus ? 'View Details' : 'View'}
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-4 sm:mt-0 sm:self-center">
+        {event.registrationStatus && (
+          <Button
+            variant="default" // Primary style for Sponsor
+            size="sm"
+            onClick={() => onSponsorClick && onSponsorClick(event.id)}
+            icon={<Heart className="w-4 h-4 fill-current" />}
+            className="w-full sm:w-auto flex-shrink-0 bg-red-500 hover:bg-red-600 text-white border-red-500"
+          >
+            Sponsor
+          </Button>
+        )}
+        <Button
+          variant={event.registrationStatus ? "outline" : "ghost"}
+          size="sm"
+          onClick={onViewDetails}
+          icon={!event.registrationStatus ? <ArrowRight className="w-4 h-4" /> : undefined}
+          className="w-full sm:w-auto flex-shrink-0"
+        >
+          {event.registrationStatus ? 'View Details' : 'View'}
+        </Button>
+      </div>
     </div>
   );
 };
@@ -85,6 +99,7 @@ const UpcomingEventsSection: React.FC<UpcomingEventsSectionProps> = ({
   events,
   onViewDetails,
   onBrowseAll,
+  onSponsorClick,
 }) => {
   const displayEvents = events.slice(0, 3);
 
@@ -118,6 +133,7 @@ const UpcomingEventsSection: React.FC<UpcomingEventsSectionProps> = ({
                 key={event.id}
                 event={event}
                 onViewDetails={() => onViewDetails(event.id)}
+                onSponsorClick={onSponsorClick}
               />
             ))}
           </div>

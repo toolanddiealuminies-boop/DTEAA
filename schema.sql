@@ -463,3 +463,88 @@ CREATE INDEX IF NOT EXISTS idx_entrepreneur_exp_alumni_id ON entrepreneur_experi
 CREATE INDEX IF NOT EXISTS idx_entrepreneur_exp_user_id ON entrepreneur_experiences(user_id);
 CREATE INDEX IF NOT EXISTS idx_event_registrations_event_id ON event_registrations(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_registrations_alumni_id ON event_registrations(alumni_id);
+
+-- ============================================
+-- 10. EVENT SPONSORSHIPS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS event_sponsorships (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users NOT NULL,
+  alumni_id TEXT,
+  event_id TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  payment_receipt TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- RLS Policies for event_sponsorships
+ALTER TABLE event_sponsorships ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own sponsorships" ON event_sponsorships;
+CREATE POLICY "Users can view their own sponsorships"
+  ON event_sponsorships FOR SELECT
+  USING ( auth.uid() = user_id );
+
+DROP POLICY IF EXISTS "Users can insert their own sponsorships" ON event_sponsorships;
+CREATE POLICY "Users can insert their own sponsorships"
+  ON event_sponsorships FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can update their own sponsorships" ON event_sponsorships;
+CREATE POLICY "Users can update their own sponsorships"
+  ON event_sponsorships FOR UPDATE
+  USING ( auth.uid() = user_id );
+
+-- Ensure permissions are granted
+GRANT ALL ON event_sponsorships TO authenticated;
+GRANT ALL ON event_sponsorships TO service_role;
+
+DROP POLICY IF EXISTS "Admins can view all sponsorships" ON event_sponsorships;
+CREATE POLICY "Admins can view all sponsorships"
+  ON event_sponsorships FOR SELECT
+  USING ( is_admin() );
+
+DROP POLICY IF EXISTS "Admins can update all sponsorships" ON event_sponsorships;
+DROP POLICY IF EXISTS "Admins can update all sponsorships" ON event_sponsorships;
+CREATE POLICY "Admins can update all sponsorships"
+  ON event_sponsorships FOR UPDATE
+  USING ( is_admin() );
+
+-- ============================================
+-- RPC: Submit Sponsorship (Bypasses RLS INSERT issues)
+-- ============================================
+CREATE OR REPLACE FUNCTION submit_sponsorship(
+  p_event_id TEXT,
+  p_amount INTEGER,
+  p_receipt_url TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_alumni_id TEXT;
+  v_result JSONB;
+BEGIN
+  -- Get current user ID
+  v_user_id := auth.uid();
+  
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Get Alumni ID
+  SELECT alumni_id INTO v_alumni_id FROM profiles WHERE id = v_user_id;
+
+  -- Insert record
+  INSERT INTO event_sponsorships (user_id, alumni_id, event_id, amount, payment_receipt, status)
+  VALUES (v_user_id, v_alumni_id, p_event_id, p_amount, p_receipt_url, 'pending')
+  RETURNING to_jsonb(event_sponsorships.*) INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
