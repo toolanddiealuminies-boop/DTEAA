@@ -117,9 +117,25 @@ interface GalleryPageProps {
   onBack: () => void;
   onViewAbout?: () => void;
   onLoginClick?: () => void;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
+  onDashboardClick?: () => void;
+  isAdmin?: boolean;
+  onAdminClick?: () => void;
 }
 
-const GalleryPage: React.FC<GalleryPageProps> = ({ onBack, onViewAbout, onLoginClick }) => {
+const GalleryPage: React.FC<GalleryPageProps> = ({
+  onBack,
+  onViewAbout,
+  onLoginClick,
+  isLoggedIn,
+  userName,
+  onLogout,
+  onDashboardClick,
+  isAdmin,
+  onAdminClick
+}) => {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -161,11 +177,17 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack, onViewAbout, onLoginC
     <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
       {/* Navbar */}
       <Navbar
-        onLoginClick={onLoginClick || (() => {})}
+        onLoginClick={onLoginClick || (() => { })}
         onHomeClick={onBack}
-        onViewGallery={() => {}}
+        onViewGallery={() => { }}
         onViewAbout={onViewAbout}
         hideContact={true}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
+        onDashboardClick={onDashboardClick}
+        isAdmin={isAdmin}
+        onAdminClick={onAdminClick}
       />
 
       {/* Gallery Grid */}
@@ -273,7 +295,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack, onViewAbout, onLoginC
               {/* Details Panel */}
               <div className="lg:w-80 bg-white/10 backdrop-blur-sm rounded-xl p-6 text-white">
                 <h2 className="text-2xl font-bold mb-3">{selectedImage.title}</h2>
-                
+
                 <p className="text-white/80 leading-relaxed mb-4">
                   {selectedImage.description}
                 </p>

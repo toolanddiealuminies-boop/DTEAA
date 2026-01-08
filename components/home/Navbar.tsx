@@ -15,9 +15,10 @@ interface NavbarProps {
     isLoginPage?: boolean;
     isRegistrationPage?: boolean;
     hideContact?: boolean;
+    onDashboardClick?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLogout, userName, onAdminClick, onHomeClick, onViewGallery, onViewAbout, isLoginPage, isRegistrationPage, hideContact }) => {
+const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLogout, userName, onAdminClick, onHomeClick, onViewGallery, onViewAbout, isLoginPage, isRegistrationPage, hideContact, onDashboardClick }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -73,7 +74,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLo
                     />
                     <span className="text-xl font-bold text-light-text-primary whitespace-nowrap">
                         <span className="md:hidden">DTEAA</span>
-                        <span className="hidden md:inline">Dindigul Tool Engineering Alumni Association</span>
+                        <span className="hidden md:inline">DTEAA</span>
                     </span>
                 </div>
 
@@ -106,6 +107,14 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLo
 
                     {isLoggedIn ? (
                         <div className="flex items-center gap-4">
+                            {!isAdmin && (
+                                <button
+                                    onClick={onDashboardClick}
+                                    className="px-4 py-2 rounded-md text-primary font-medium hover:bg-primary/5 transition-all hidden sm:block"
+                                >
+                                    Dashboard
+                                </button>
+                            )}
                             <div className="text-sm font-medium text-light-text-primary hidden lg:block">
                                 {userName}
                             </div>
@@ -180,6 +189,17 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, isLoggedIn, isAdmin, onLo
                                     <div className="text-light-text-secondary text-sm">
                                         Signed in as {userName}
                                     </div>
+                                    {!isAdmin && (
+                                        <button
+                                            onClick={() => {
+                                                setIsMobileMenuOpen(false);
+                                                onDashboardClick && onDashboardClick();
+                                            }}
+                                            className="w-full py-3 rounded-md bg-primary/10 text-primary font-bold hover:bg-primary/20 transition-all active:scale-95"
+                                        >
+                                            Dashboard
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => {
                                             setIsMobileMenuOpen(false);

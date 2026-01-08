@@ -83,6 +83,7 @@ const App: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false); // New state for Home Page vs Login
   const [showGallery, setShowGallery] = useState(false); // Gallery page state
   const [showAbout, setShowAbout] = useState(false); // About page state
+  const [showHomePage, setShowHomePage] = useState(false); // Home page state override
 
   // fetch profile by user id and update local state (normalized schema)
   const fetchUserProfile = async (userId: string) => {
@@ -218,7 +219,7 @@ const App: React.FC = () => {
 
       // Fetch related data for all profiles
       const userIds = profiles.map(p => p.id);
-      
+
       const [personalRes, contactRes, employeeRes, entrepreneurRes, openToWorkRes, privacyRes] = await Promise.all([
         supabase.from('personal_details').select('*').in('user_id', userIds),
         supabase.from('contact_details').select('*').in('user_id', userIds),
@@ -233,7 +234,7 @@ const App: React.FC = () => {
       const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
       const privacyMap = new Map((privacyRes.data || []).map(p => [p.user_id, p]));
       const openToWorkMap = new Map((openToWorkRes.data || []).map(o => [o.user_id, o]));
-      
+
       const employeeMap = new Map<string, any[]>();
       (employeeRes.data || []).forEach(e => {
         if (!employeeMap.has(e.user_id)) employeeMap.set(e.user_id, []);
@@ -594,6 +595,62 @@ const App: React.FC = () => {
     }
   }, [userData, fetchAllUsers]);
 
+  // --- Browser History Sync (Fix for Back/Forward buttons) ---
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      console.log('Navigating to:', path);
+
+      // Reset all "page" states first
+      setShowLogin(false);
+      setShowGallery(false);
+      setShowAbout(false);
+      setShowHomePage(false); // Default to Main Logic
+
+      if (path === '/login') {
+        if (!session) setShowLogin(true);
+      } else if (path === '/gallery') {
+        setShowGallery(true);
+      } else if (path === '/about') {
+        setShowAbout(true);
+      } else if (path === '/admin') {
+        if (userData?.role === 'admin') setIsAdminView(true);
+      } else if (path === '/dashboard') {
+        if (session) setShowHomePage(false); // Triggers dashboard view
+      } else {
+        // Home or unknown -> Default view
+        if (session) setShowHomePage(true); // Explicit home for logged in
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Initial load handling (Deep linking support)
+    // We delay slightly to allow session to restore first
+    setTimeout(() => {
+      handlePopState();
+    }, 100);
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [session, userData?.role]); // Re-bind if auth state changes
+
+  // Update URL when State Changes
+  useEffect(() => {
+    let path = '/';
+    if (showGallery) path = '/gallery';
+    else if (showAbout) path = '/about';
+    else if (isAdminView) path = '/admin';
+    else if (showLogin && !session) path = '/login';
+    else if (session && !showHomePage && isRegistered) path = '/dashboard';
+    else path = '/';
+
+    // Only push if different to avoid noise/loops
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+  }, [showGallery, showAbout, isAdminView, showLogin, session, showHomePage, isRegistered]);
+  // -------------------------------------------------------------
+
   // logout
   const handleLogout = async () => {
     try {
@@ -835,7 +892,7 @@ const App: React.FC = () => {
           if (profileError) {
             const msg = (profileError as any).message || JSON.stringify(profileError);
             const isUniqueConflict = profileError.code === '23505' || /unique/i.test(msg) || /already exists/i.test(msg);
-            
+
             if (isUniqueConflict && !isResubmission && attempt < MAX_ATTEMPTS) {
               console.log('\n⚠️ UNIQUE CONSTRAINT VIOLATION on profiles');
               await new Promise(r => setTimeout(r, 200 * attempt));
@@ -975,7 +1032,7 @@ const App: React.FC = () => {
           console.log('   Status:', profileRes.status);
           console.log('   Email:', registrationFormData.personal.email);
           console.log('═══════════════════════════════════════');
-          
+
           insertedData = {
             ...profileRes,
             personal: registrationFormData.personal,
@@ -1184,21 +1241,57 @@ const App: React.FC = () => {
     // }
 
     // Default fallback: Home Page (if not logged in and not showing login)
-    return <HomePage onLoginClick={() => setShowLogin(true)} onViewGallery={() => setShowGallery(true)} onViewAbout={() => setShowAbout(true)} />;
+    return <HomePage
+      onLoginClick={() => {
+        if (session) {
+          setShowHomePage(false); // Go to Dashboard
+        } else {
+          setShowLogin(true);
+        }
+      }}
+      onViewGallery={() => setShowGallery(true)}
+      onViewAbout={() => setShowAbout(true)}
+      userId={userData?.id}
+    />;
   };
 
   // If showing Gallery page
   if (showGallery) {
-    return <GalleryPage onBack={() => setShowGallery(false)} onViewAbout={() => { setShowGallery(false); setShowAbout(true); }} onLoginClick={() => { setShowGallery(false); setShowLogin(true); }} />;
+    return (
+      <GalleryPage
+        onBack={() => setShowGallery(false)}
+        onViewAbout={() => { setShowGallery(false); setShowAbout(true); }}
+        onLoginClick={() => { setShowGallery(false); setShowLogin(true); }}
+        isLoggedIn={!!session}
+        inputUserName={userData?.personal?.firstName}
+        userName={userData?.personal?.firstName}
+        onLogout={handleLogoutClick}
+        onDashboardClick={() => { setShowGallery(false); setShowHomePage(false); }}
+        isAdmin={userData?.role === 'admin'}
+        onAdminClick={() => { setShowGallery(false); setIsAdminView(true); }}
+      />
+    );
   }
 
   // If showing About page
   if (showAbout) {
-    return <AboutPage onBack={() => setShowAbout(false)} onViewGallery={() => { setShowAbout(false); setShowGallery(true); }} onLoginClick={() => { setShowAbout(false); setShowLogin(true); }} />;
+    return (
+      <AboutPage
+        onBack={() => setShowAbout(false)}
+        onViewGallery={() => { setShowAbout(false); setShowGallery(true); }}
+        onLoginClick={() => { setShowAbout(false); setShowLogin(true); }}
+        isLoggedIn={!!session}
+        userName={userData?.personal?.firstName}
+        onLogout={handleLogoutClick}
+        onDashboardClick={() => { setShowAbout(false); setShowHomePage(false); }}
+        isAdmin={userData?.role === 'admin'}
+        onAdminClick={() => { setShowAbout(false); setIsAdminView(true); }}
+      />
+    );
   }
 
   // If user is verified OR PENDING, render Dashboard outside of Layout (it has its own navbar)
-  if (session && isRegistered && (userData?.status === 'verified' || userData?.status === 'pending') && !isAdminView) {
+  if (session && isRegistered && (userData?.status === 'verified' || userData?.status === 'pending') && !isAdminView && !showHomePage) {
     return (
       <>
         {/* Logout Confirmation Modal */}
@@ -1211,7 +1304,11 @@ const App: React.FC = () => {
           onConfirm={confirmLogout}
           onCancel={() => setShowLogoutConfirmation(false)}
         />
-        <Dashboard userData={userData!} onLogout={handleLogoutClick} />
+        <Dashboard
+          userData={userData!}
+          onLogout={handleLogoutClick}
+          onHomeClick={() => setShowHomePage(true)}
+        />
       </>
     );
   }
@@ -1227,6 +1324,7 @@ const App: React.FC = () => {
       onHomeClick={() => {
         setShowLogin(false);
         setIsAdminView(false);
+        setShowHomePage(true);
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }}
@@ -1234,6 +1332,7 @@ const App: React.FC = () => {
       isRegistrationPage={isRegistration}
       onViewGallery={() => setShowGallery(true)}
       onViewAbout={() => setShowAbout(true)}
+      onDashboardClick={() => setShowHomePage(false)}
     >
       {/* Logout Confirmation Modal */}
       <ConfirmationModal

@@ -12,11 +12,15 @@ import Footer from '../home/Footer';
 import { supabase } from '../../lib/supabaseClient';
 import type { UserData } from '../../types';
 import EventRegistrationModal from './EventRegistrationModal';
+import SponsorModal from './SponsorModal';
+import SponsorPromoPopup from '../SponsorPromoPopup';
+import { Heart } from 'lucide-react';
 
 interface DashboardProps {
   userData: UserData;
   onLogout: () => void;
   onUserDataUpdate?: (updatedData: UserData) => void;
+  onHomeClick?: () => void;
 }
 
 // Mock events data - Replace with actual API call
@@ -28,29 +32,123 @@ const mockEvents: Event[] = [
     location: 'Institute of Tool Engineering, Dindigul',
     description: 'Join us for a day of nostalgia, networking, and celebration.',
   },
-  // {
-  //   id: '2',
-  //   title: 'Career Networking Session',
-  //   date: '2025-01-20',
-  //   location: 'Virtual Event',
-  //   description: 'Connect with fellow alumni and explore opportunities.',
-  // },
-  // {
-  //   id: '3',
-  //   title: 'Tech Talk: AI in Manufacturing',
-  //   date: '2025-01-25',
-  //   location: 'Auditorium, Block A',
-  //   description: 'Expert session on AI applications.',
-  // },
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile'>('dashboard');
-  const [events] = useState<Event[]>(mockEvents);
+const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpdate, onHomeClick }) => {
+  // Initialize tab from URL query param or default to 'dashboard'
+  const getInitialTab = () => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ['dashboard', 'directory', 'events', 'profile'].includes(tab)) {
+      return tab as 'dashboard' | 'directory' | 'events' | 'profile';
+    }
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile'>(getInitialTab);
+  const [events, setEvents] = useState<Event[]>(mockEvents);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [localUserData, setLocalUserData] = useState<UserData>(userData);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  // Sync state -> URL
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (activeTab === 'dashboard') {
+      params.delete('tab');
+    } else {
+      params.set('tab', activeTab);
+    }
+
+    // Construct new URL
+    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+
+    // Only push if changed to avoid loops/noise
+    if (window.location.search !== (params.toString() ? '?' + params.toString() : '')) {
+      window.history.pushState({}, '', newUrl);
+    }
+  }, [activeTab]);
+
+  // Sync URL -> State (Back/Forward support)
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['dashboard', 'directory', 'events', 'profile'].includes(tab)) {
+        setActiveTab(tab as any);
+      } else {
+        setActiveTab('dashboard');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Sponsorship State
+  const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
+  const [hasSponsored, setHasSponsored] = useState(false);
+  const [showPromoPopup, setShowPromoPopup] = useState(false);
+  const [sponsorships, setSponsorships] = useState<any[]>([]);
+
+  const fetchRegistrations = async () => {
+    if (!userData.id) return;
+
+    try {
+      // 1. Fetch Registrations
+      const { data: regData } = await supabase
+        .from('event_registrations')
+        .select('event_id, status')
+        .eq('user_id', userData.id);
+
+      // 2. Fetch Sponsorships
+      const { data: sponsorData } = await supabase
+        .from('event_sponsorships')
+        .select('id, status, amount, event_id, created_at')
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false });
+
+      const isRegisteredForAny = regData && regData.length > 0;
+      const alreadySponsored = sponsorData && sponsorData.length > 0;
+      setHasSponsored(!!alreadySponsored);
+      setSponsorships(sponsorData || []);
+
+      // Show popup if registered but NOT sponsored
+      if (isRegisteredForAny && !alreadySponsored) {
+        // slight delay for better UX
+        setTimeout(() => setShowPromoPopup(true), 2000);
+      }
+
+      if (regData) {
+        const registrationMap = new Map(regData.map((r: any) => [r.event_id, r.status]));
+
+        // Merge with mockEvents
+        const updatedEvents = mockEvents.map(event => ({
+          ...event,
+          registrationStatus: registrationMap.get(event.id) as any || null
+        }));
+        setEvents(updatedEvents);
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchRegistrations();
+  }, [userData.id]);
+
+  const handleSponsorClick = (eventId: string) => {
+    setSelectedEventId(eventId);
+    setIsSponsorModalOpen(true);
+    setShowPromoPopup(false); // Close popup if opened via button
+  };
+
+  const handleSponsorSuccess = () => {
+    setHasSponsored(true);
+    fetchRegistrations(); // Refresh data
+  };
 
   const handleViewDirectory = () => {
     setActiveTab('directory');
@@ -226,6 +324,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
   };
 
   const handleEventDetails = (eventId: string) => {
+    // If registered, maybe just show details or edit?
+    // For now, simple logic: if it's the specific event, open modal
     if (eventId === 'alumni-meet-2026') {
       setSelectedEventId(eventId);
       setIsEventModalOpen(true);
@@ -313,11 +413,113 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
             {/* Upcoming Events - Full Width */}
             <motion.div variants={itemVariants}>
               <UpcomingEventsSection
-                events={events}
+                events={events} // Pass state events
                 onViewDetails={handleEventDetails}
                 onBrowseAll={handleBrowseAllEvents}
+                onSponsorClick={handleSponsorClick}
               />
             </motion.div>
+
+            {/* My Contributions Section */}
+            {/* My Contributions Section */}
+            {hasSponsored && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="bg-white rounded-xl shadow-sm border border-light-border p-6 overflow-hidden">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <Heart className="w-5 h-5 text-red-500 fill-current" />
+                        My Contributions
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">Thank you for supporting our alumni community.</p>
+                    </div>
+                    <button
+                      onClick={() => handleSponsorClick('alumni-meet-2026')}
+                      className="w-full md:w-auto px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                    >
+                      <Heart className="w-4 h-4" />
+                      Sponsor More
+                    </button>
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg overflow-hidden">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Event
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {sponsorships.map((sponsor) => (
+                          <tr key={sponsor.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {events.find(e => e.id === sponsor.event_id)?.title || 'Alumni Event'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(sponsor.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                              ₹{sponsor.amount}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${sponsor.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  sponsor.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                    'bg-yellow-100 text-yellow-800'}`}>
+                                {sponsor.status ? sponsor.status.charAt(0).toUpperCase() + sponsor.status.slice(1) : 'Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-4">
+                    {sponsorships.map((sponsor) => (
+                      <div key={sponsor.id} className="border border-gray-100 rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            {events.find(e => e.id === sponsor.event_id)?.title || 'Alumni Event'}
+                          </h4>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wide 
+                              ${sponsor.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              sponsor.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'}`}>
+                            {sponsor.status}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <div className="text-xs text-gray-500">
+                            {new Date(sponsor.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-xl font-bold text-gray-900">
+                            ₹{sponsor.amount}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         );
 
@@ -375,14 +577,30 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
                         </svg>
                         {event.location}
                       </div>
+
+                      {/* Add Status Badge logic here for Events Tab too if needed, or reuse component logic */}
+                      {event.registrationStatus === 'approved' && (
+                        <div className="mb-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                          Registered
+                        </div>
+                      )}
+                      {event.registrationStatus === 'pending' && (
+                        <div className="mb-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                          Pending Approval
+                        </div>
+                      )}
+
                       <button
                         onClick={() => {
                           setSelectedEventId(event.id);
                           setIsEventModalOpen(true);
                         }}
-                        className="w-full py-3 rounded-lg bg-gradient-to-r from-[#E7A700] to-[#FFB800] text-white font-bold hover:shadow-lg transition-all"
+                        className={`w-full py-3 rounded-lg font-bold transition-all ${event.registrationStatus
+                          ? 'bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : 'bg-gradient-to-r from-[#E7A700] to-[#FFB800] text-white hover:shadow-lg'
+                          }`}
                       >
-                        Register Now
+                        {event.registrationStatus ? 'View Details' : 'Register Now'}
                       </button>
                     </div>
                   </motion.div>
@@ -455,6 +673,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onLogout={onLogout}
+        onHomeClick={onHomeClick}
       />
 
       <main className="flex-grow pt-24 pb-8 px-4 sm:px-6 lg:px-8">
@@ -483,9 +702,25 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         userId={localUserData.id}
         alumniId={localUserData.alumniId}
         onSuccess={() => {
-          // Optional: Show success toast or refresh participation status
-          alert('Successfully registered for Alumni Meet 2026!');
+          fetchRegistrations(); // Refresh registration data
+          // alert('Successfully registered for Alumni Meet 2026!'); // Removed alert as modal shows success
         }}
+      />
+
+      {/* Sponsor Modal */}
+      <SponsorModal
+        isOpen={isSponsorModalOpen}
+        onClose={() => setIsSponsorModalOpen(false)}
+        userId={localUserData.id}
+        eventId={selectedEventId || 'alumni-meet-2026'}
+        onSuccess={handleSponsorSuccess}
+      />
+
+      {/* Sponsor Promo Popup */}
+      <SponsorPromoPopup
+        isOpen={showPromoPopup}
+        onClose={() => setShowPromoPopup(false)}
+        onSponsorClick={() => handleSponsorClick('alumni-meet-2026')}
       />
     </div>
   );

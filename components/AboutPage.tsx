@@ -7,9 +7,25 @@ interface AboutPageProps {
   onBack: () => void;
   onViewGallery?: () => void;
   onLoginClick?: () => void;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
+  onDashboardClick?: () => void;
+  isAdmin?: boolean;
+  onAdminClick?: () => void;
 }
 
-const AboutPage: React.FC<AboutPageProps> = ({ onBack, onViewGallery, onLoginClick }) => {
+const AboutPage: React.FC<AboutPageProps> = ({
+  onBack,
+  onViewGallery,
+  onLoginClick,
+  isLoggedIn,
+  userName,
+  onLogout,
+  onDashboardClick,
+  isAdmin,
+  onAdminClick
+}) => {
   const objectives = [
     { icon: Users, text: 'To create a strong and continuous connection between alumni, faculty, and current students.' },
     { icon: GraduationCap, text: 'To support education, career development, and personal growth of members.' },
@@ -39,11 +55,17 @@ const AboutPage: React.FC<AboutPageProps> = ({ onBack, onViewGallery, onLoginCli
     <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
       {/* Navbar */}
       <Navbar
-        onLoginClick={onLoginClick || (() => {})}
+        onLoginClick={onLoginClick || (() => { })}
         onHomeClick={onBack}
         onViewGallery={onViewGallery}
-        onViewAbout={() => {}}
+        onViewAbout={() => { }}
         hideContact={true}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
+        onDashboardClick={onDashboardClick}
+        isAdmin={isAdmin}
+        onAdminClick={onAdminClick}
       />
 
       {/* Hero Section */}

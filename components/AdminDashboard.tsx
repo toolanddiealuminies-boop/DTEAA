@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { UserData } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
-import { Download, Users, Ticket, UserCheck, Utensils } from 'lucide-react';
+import { Download, Users, Ticket, UserCheck, Utensils, Heart } from 'lucide-react';
 
 interface Props {
   users: UserData[];
@@ -23,9 +23,179 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   const [rejectionComments, setRejectionComments] = useState('');
 
   // Event Dashboard State
-  const [activeView, setActiveView] = useState<'verifications' | 'events'>('verifications');
+  const [activeView, setActiveView] = useState<'verifications' | 'events' | 'sponsorships'>('verifications');
   const [eventRegistrations, setEventRegistrations] = useState<any[]>([]);
+  const [sponsorships, setSponsorships] = useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // ... (existing code)
+
+  const fetchSponsorships = async () => {
+    setLoadingEvents(true);
+    try {
+      // 1. Fetch sponsorships
+      const { data: sponsorsData, error: sponsorError } = await supabase
+        .from('event_sponsorships')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (sponsorError) {
+        console.error('Sponsorship fetch error:', sponsorError);
+        alert('Error fetching sponsorships: ' + sponsorError.message);
+        throw sponsorError;
+      }
+
+      if (!sponsorsData || sponsorsData.length === 0) {
+        setSponsorships([]);
+        return;
+      }
+
+      // 2. Fetch user details manually
+      const userIds = [...new Set(sponsorsData.map(s => s.user_id))]; // Unique IDs
+      console.log('Fetching details for user IDs:', userIds);
+
+      const [personalRes, profileRes, contactRes] = await Promise.all([
+        supabase
+          .from('personal_details')
+          .select('user_id, first_name, last_name, email')
+          .in('user_id', userIds),
+        supabase
+          .from('profiles')
+          .select('id, alumni_id')
+          .in('id', userIds),
+        supabase
+          .from('contact_details')
+          .select('user_id, mobile')
+          .in('user_id', userIds)
+      ]);
+
+      if (personalRes.error) console.error('Personal details fetch error:', personalRes.error);
+      if (profileRes.error) console.error('Profile details fetch error:', profileRes.error);
+      if (contactRes.error) console.error('Contact details fetch error:', contactRes.error);
+
+      // 3. Map details to sponsorships
+      const personalMap = new Map((personalRes.data || []).map(p => [p.user_id, p]));
+      const profileMap = new Map((profileRes.data || []).map(p => [p.id, p]));
+      const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
+
+      const enrichedSponsorships = sponsorsData.map(sponsor => {
+        const personal = personalMap.get(sponsor.user_id);
+        const profile = profileMap.get(sponsor.user_id);
+        const contact = contactMap.get(sponsor.user_id);
+
+        return {
+          ...sponsor,
+          firstName: personal?.first_name || 'Unknown',
+          lastName: personal?.last_name || 'User',
+          email: personal?.email || 'N/A',
+          mobile: contact?.mobile || 'N/A',
+          alumniId: sponsor.alumni_id || profile?.alumni_id || 'Pending'
+        };
+      });
+
+      console.log('Final enriched sponsorships:', enrichedSponsorships);
+      setSponsorships(enrichedSponsorships);
+    } catch (err) {
+      console.error('Critical Error in fetchSponsorships:', err);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
+  const handleSponsorAction = async (id: string, action: 'approved' | 'rejected') => {
+    const { error } = await supabase
+      .from('event_sponsorships')
+      .update({ status: action })
+      .eq('id', id);
+
+    if (!error) {
+      fetchSponsorships(); // Refresh list
+    } else {
+      alert('Failed to update sponsorship status');
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'events') fetchEventRegistrations();
+    if (activeView === 'sponsorships') fetchSponsorships();
+  }, [activeView]);
+
+  // Render Functions
+  // ... (existing render functions)
+
+  const renderSponsorshipsTable = () => (
+    <div className="bg-white dark:bg-dark-card rounded-lg shadow overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Event Sponsorships</h3>
+        <div className="flex items-center gap-3">
+          <button onClick={exportSponsorshipsToExcel} className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition">
+            <Download size={14} />
+            Export to Excel
+          </button>
+          <button onClick={fetchSponsorships} className="text-primary hover:underline text-sm font-medium">Refresh</button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-900/50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Alumni Details</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Receipt</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-dark-card divide-y divide-gray-200 dark:divide-gray-800">
+            {sponsorships.map((sponsor) => (
+              <tr key={sponsor.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(sponsor.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {sponsor.firstName} {sponsor.lastName}
+                  </div>
+                  <div className="text-xs text-primary font-medium">{sponsor.alumni_id || sponsor.alumniId || '—'}</div>
+                  <div className="text-xs text-gray-500">{sponsor.mobile}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                  ₹{sponsor.amount}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:underline">
+                  {sponsor.payment_receipt ? (
+                    <a href={sponsor.payment_receipt} target="_blank" rel="noopener noreferrer">View Receipt</a>
+                  ) : 'No Receipt'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                    ${sponsor.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      sponsor.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'}`}>
+                    {sponsor.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                  {sponsor.status === 'pending' && (
+                    <>
+                      <button onClick={() => handleSponsorAction(sponsor.id, 'approved')} className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md transition-colors">Approve</button>
+                      <button onClick={() => handleSponsorAction(sponsor.id, 'rejected')} className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors">Reject</button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {sponsorships.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-10 text-center text-gray-500">No sponsorships found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   // Search & filter state
   const [query, setQuery] = useState<string>('');
@@ -138,7 +308,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
 
       // Fetch personal and contact details for all registered users
       const userIds = registrations.map(r => r.user_id);
-      
+
       const [personalRes, contactRes, profilesRes] = await Promise.all([
         supabase.from('personal_details').select('user_id, first_name, last_name').in('user_id', userIds),
         supabase.from('contact_details').select('user_id, mobile').in('user_id', userIds),
@@ -196,6 +366,26 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
     XLSX.writeFile(wb, "Alumni_Meet_2026_Participants.xlsx");
   };
 
+  const exportSponsorshipsToExcel = () => {
+    const dataToExport = sponsorships.map(sponsor => ({
+      'Date': new Date(sponsor.created_at).toLocaleDateString(),
+      'Alumni ID': sponsor.alumniId || sponsor.alumni_id || 'N/A',
+      'Event ID': sponsor.event_id || 'N/A',
+      'First Name': sponsor.firstName,
+      'Last Name': sponsor.lastName,
+      'Mobile': sponsor.mobile,
+      'Email': sponsor.email,
+      'Amount': sponsor.amount,
+      'Status': sponsor.status,
+      'Payment Receipt': sponsor.payment_receipt || 'N/A'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sponsorships");
+    XLSX.writeFile(wb, "Event_Sponsorships.xlsx");
+  };
+
   const eventStats = useMemo(() => {
     const totalReg = eventRegistrations.filter(r => r.attending).length;
     const totalPax = eventRegistrations.reduce((acc, curr) => acc + (curr.attending ? (curr.total_participants || 1) : 0), 0);
@@ -204,6 +394,47 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
 
     return { totalReg, totalPax, vegCount, nonVegCount };
   }, [eventRegistrations]);
+
+
+  const handleApproveEventRegistration = async (registrationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_registrations')
+        .update({ status: 'approved' })
+        .eq('id', registrationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setEventRegistrations(prev =>
+        prev.map(r => r.id === registrationId ? { ...r, status: 'approved' } : r)
+      );
+    } catch (err) {
+      console.error('Error approving registration:', err);
+      alert('Failed to approve registration');
+    }
+  };
+
+  const handleRejectEventRegistration = async (registrationId: string) => {
+    if (!confirm("Are you sure you want to reject this registration?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('event_registrations')
+        .update({ status: 'rejected' })
+        .eq('id', registrationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setEventRegistrations(prev =>
+        prev.map(r => r.id === registrationId ? { ...r, status: 'rejected' } : r)
+      );
+    } catch (err) {
+      console.error('Error rejecting registration:', err);
+      alert('Failed to reject registration');
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto mt-8 bg-white dark:bg-dark-card rounded-lg shadow-lg border border-light-border dark:border-dark-border relative z-10 transition-colors duration-200 overflow-hidden">
@@ -215,21 +446,27 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
         <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
           <button
             onClick={() => setActiveView('verifications')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeView === 'verifications' ? 'bg-white dark:bg-gray-600 shadow-sm text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2
+            ${activeView === 'verifications' ? 'bg-primary text-white shadow-md' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
           >
-            <div className="flex items-center gap-2">
-              <UserCheck size={16} />
-              Member Verifications
-            </div>
+            <UserCheck className="w-4 h-4" />
+            Member Verifications
           </button>
           <button
             onClick={() => setActiveView('events')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeView === 'events' ? 'bg-white dark:bg-gray-600 shadow-sm text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2
+            ${activeView === 'events' ? 'bg-primary text-white shadow-md' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
           >
-            <div className="flex items-center gap-2">
-              <Ticket size={16} />
-              Event Registrations
-            </div>
+            <Ticket className="w-4 h-4" />
+            Registrations
+          </button>
+          <button
+            onClick={() => setActiveView('sponsorships')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2
+            ${activeView === 'sponsorships' ? 'bg-primary text-white shadow-md' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
+          >
+            <Heart className="w-4 h-4" />
+            Sponsorships
           </button>
         </div>
       </div>
@@ -283,17 +520,19 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                     <th className="px-6 py-4 text-center">Attending</th>
                     <th className="px-6 py-4">Meal Pref</th>
                     <th className="px-6 py-4 text-center">Participants</th>
-                    <th className="px-6 py-4 text-right">Registered On</th>
+                    <th className="px-6 py-4">Receipt</th>
+                    <th className="px-6 py-4 text-center">Status</th>
+                    <th className="px-6 py-4 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {loadingEvents ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Loading registrations...</td>
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">Loading registrations...</td>
                     </tr>
                   ) : eventRegistrations.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No registrations yet.</td>
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No registrations yet.</td>
                     </tr>
                   ) : (
                     eventRegistrations.map((reg) => (
@@ -328,8 +567,55 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                         <td className="px-6 py-4 text-center font-semibold text-gray-900 dark:text-white">
                           {reg.total_participants}
                         </td>
-                        <td className="px-6 py-4 text-right text-gray-500">
-                          {new Date(reg.created_at).toLocaleDateString()}
+                        <td className="px-6 py-4">
+                          {reg.payment_receipt ? (
+                            <a href={reg.payment_receipt} target="_blank" rel="noopener noreferrer" className="block w-12 h-12">
+                              <img
+                                src={reg.payment_receipt}
+                                alt="Receipt"
+                                className="w-full h-full object-cover rounded border border-gray-200 dark:border-gray-700 hover:scale-110 transition-transform"
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {reg.status === 'approved' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              Approved
+                            </span>
+                          )}
+                          {reg.status === 'rejected' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                              Rejected
+                            </span>
+                          )}
+                          {(reg.status === 'pending' || !reg.status) && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {(!reg.status || reg.status === 'pending') && reg.attending && (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleApproveEventRegistration(reg.id)}
+                                className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                title="Approve"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              </button>
+                              <button
+                                onClick={() => handleRejectEventRegistration(reg.id)}
+                                className="p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                title="Reject"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -338,6 +624,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
               </table>
             </div>
           </div>
+        ) : activeView === 'sponsorships' ? (
+          renderSponsorshipsTable()
         ) : (
           <>
             {/* Search & Filters */}
