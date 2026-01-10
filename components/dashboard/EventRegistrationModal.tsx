@@ -131,7 +131,7 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
             if (attending && receiptFile) {
                 const fileExt = receiptFile.name.split('.').pop();
                 const fileName = `${userId}/${Date.now()}.${fileExt}`;
-                const { error: uploadError, _data } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('receipts')
                     .upload(fileName, receiptFile);
 
