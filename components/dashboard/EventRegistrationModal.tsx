@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { X, Check, Loader2, Upload, ArrowLeft, Calendar, MapPin, DollarSign, Users, Utensils, Copy } from 'lucide-react';
+import { X, Check, Loader2, Upload, Calendar, MapPin, Copy } from 'lucide-react';
 
 interface EventRegistrationModalProps {
     isOpen: boolean;
@@ -15,7 +15,6 @@ const REGISTRATION_FEE = 300;
 const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen, onClose, userId, alumniId, onSuccess }) => {
     const [step, setStep] = useState(1);
     const [attending, setAttending] = useState<boolean | null>(null);
-    const [mealPreference, setMealPreference] = useState<'Veg' | 'Non-Veg'>('Veg');
     const [totalParticipants, setTotalParticipants] = useState(1);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
@@ -44,7 +43,6 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
             // Reset state when closed
             setStep(1);
             setAttending(null);
-            setMealPreference('Veg');
             setTotalParticipants(1);
             setReceiptFile(null);
             setReceiptPreview(null);
@@ -73,7 +71,6 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                 // Pre-fill state for display
                 setAttending(data.attending);
                 if (data.attending) {
-                    setMealPreference(data.meal_preference);
                     setTotalParticipants(data.total_participants);
                     setReceiptPreview(data.payment_receipt);
                 }
@@ -134,7 +131,7 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
             if (attending && receiptFile) {
                 const fileExt = receiptFile.name.split('.').pop();
                 const fileName = `${userId}/${Date.now()}.${fileExt}`;
-                const { error: uploadError, data } = await supabase.storage
+                const { error: uploadError, _data } = await supabase.storage
                     .from('receipts')
                     .upload(fileName, receiptFile);
 
@@ -155,7 +152,7 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                 alumni_id: alumniId,
                 event_id: 'alumni-meet-2026',
                 attending: attending,
-                meal_preference: attending ? mealPreference : null,
+                meal_preference: null, // Removed per user request
                 total_participants: attending ? totalParticipants : 0,
                 amount_paid: attending ? REGISTRATION_FEE : 0,
                 payment_receipt: receiptUrl,
@@ -277,10 +274,6 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-3">
                                         <h4 className="font-semibold text-gray-900 dark:text-white border-b border-gray-200 pb-2 mb-2">My Selections</h4>
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-500">Meal Preference</span>
-                                            <span className="font-medium text-gray-900 dark:text-white">{existingRegistration.meal_preference}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm">
                                             <span className="text-gray-500">Participants</span>
                                             <span className="font-medium text-gray-900 dark:text-white">{existingRegistration.total_participants}</span>
                                         </div>
@@ -352,40 +345,11 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Select Meal Preference
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <button
-                                                onClick={() => setMealPreference('Veg')}
-                                                className={`p-4 rounded-xl border transition-all flex items-center justify-center gap-2 ${mealPreference === 'Veg'
-                                                    ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500'
-                                                    : 'border-gray-200 hover:border-green-200'}`}
-                                            >
-                                                <div className="w-4 h-4 rounded-full border border-green-600 flex items-center justify-center">
-                                                    <div className="w-2 h-2 rounded-full bg-green-600"></div>
-                                                </div>
-                                                Vegetarian
-                                            </button>
-                                            <button
-                                                onClick={() => setMealPreference('Non-Veg')}
-                                                className={`p-4 rounded-xl border transition-all flex items-center justify-center gap-2 ${mealPreference === 'Non-Veg'
-                                                    ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-500'
-                                                    : 'border-gray-200 hover:border-red-200'}`}
-                                            >
-                                                <div className="w-4 h-4 rounded-full border border-red-600 flex items-center justify-center">
-                                                    <div className="w-2 h-2 rounded-full bg-red-600"></div>
-                                                </div>
-                                                Non-Vegetarian
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Number of Participants (including yourself)
                                         </label>
                                         <div className="flex items-center">
                                             <button
+                                                type="button"
                                                 onClick={() => setTotalParticipants(Math.max(1, totalParticipants - 1))}
                                                 className="w-12 h-12 flex items-center justify-center rounded-l-xl bg-gray-100 hover:bg-gray-200 border border-r-0 border-gray-300 font-bold text-lg"
                                             >
@@ -398,6 +362,7 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                                                 className="w-full h-12 text-center border-y border-gray-300 font-bold text-gray-800"
                                             />
                                             <button
+                                                type="button"
                                                 onClick={() => setTotalParticipants(Math.min(10, totalParticipants + 1))}
                                                 className="w-12 h-12 flex items-center justify-center rounded-r-xl bg-gray-100 hover:bg-gray-200 border border-l-0 border-gray-300 font-bold text-lg"
                                             >
@@ -579,10 +544,6 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500">Event</span>
                                                 <span className="font-semibold text-gray-900 dark:text-white">Alumni Meet 2026</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Meal Preference</span>
-                                                <span className="font-semibold text-gray-900 dark:text-white">{successData.meal_preference}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500">Total Persons</span>

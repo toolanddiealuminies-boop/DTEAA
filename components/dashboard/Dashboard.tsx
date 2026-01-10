@@ -14,6 +14,8 @@ import type { UserData } from '../../types';
 import EventRegistrationModal from './EventRegistrationModal';
 import SponsorModal from './SponsorModal';
 import SponsorPromoPopup from '../SponsorPromoPopup';
+import VoucherCard from './VoucherCard';
+import InvoiceModal from './InvoiceModal';
 import { Heart } from 'lucide-react';
 
 interface DashboardProps {
@@ -91,6 +93,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
   const [hasSponsored, setHasSponsored] = useState(false);
   const [showPromoPopup, setShowPromoPopup] = useState(false);
   const [sponsorships, setSponsorships] = useState<any[]>([]);
+  const [vouchers, setVouchers] = useState<any[]>([]); // These are now Invoices
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   const fetchRegistrations = async () => {
     if (!userData.id) return;
@@ -109,10 +113,22 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         .eq('user_id', userData.id)
         .order('created_at', { ascending: false });
 
+      // 3. Fetch E-Vouchers
+      console.log('Fetching vouchers for user:', userData.id);
+      const { data: voucherData, error: voucherError } = await supabase
+        .from('e_vouchers')
+        .select('*')
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false });
+
+      if (voucherError) console.error('Error fetching vouchers:', voucherError);
+      console.log('Voucher Data:', voucherData);
+
       const isRegisteredForAny = regData && regData.length > 0;
       const alreadySponsored = sponsorData && sponsorData.length > 0;
       setHasSponsored(!!alreadySponsored);
       setSponsorships(sponsorData || []);
+      setVouchers(voucherData || []);
 
       // Show popup if registered but NOT sponsored
       if (isRegisteredForAny && !alreadySponsored) {
@@ -409,6 +425,24 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
                 />
               </motion.div>
             </div>
+
+            {/* My E-Vouchers - Show only if exists */}
+            {/* My E-Vouchers - Show only if exists */}
+            {vouchers.length > 0 && (
+              <div className="animate-fade-in-up">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                  <span className="w-1 h-6 bg-green-500 rounded-full"></span>
+                  Payment Receipts
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {vouchers.map(v => (
+                    <div key={v.id} onClick={() => setSelectedInvoice(v)} className="cursor-pointer transition-transform hover:scale-105" title="Click to view Invoice">
+                      <VoucherCard voucher={v} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Upcoming Events - Full Width */}
             <motion.div variants={itemVariants}>
@@ -721,6 +755,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
         isOpen={showPromoPopup}
         onClose={() => setShowPromoPopup(false)}
         onSponsorClick={() => handleSponsorClick('alumni-meet-2026')}
+      />
+      <InvoiceModal
+        isOpen={!!selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+        invoice={selectedInvoice}
+        userName={`${localUserData.personal.firstName} ${localUserData.personal.lastName}`}
+        alumniId={localUserData.personal.alumniId || localUserData.alumniId || 'N/A'}
       />
     </div>
   );

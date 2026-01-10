@@ -548,3 +548,34 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+
+-- ============================================
+-- 11. E-VOUCHERS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS e_vouchers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users NOT NULL,
+  event_id TEXT NOT NULL,
+  type TEXT CHECK (type IN ('registration', 'sponsorship')),
+  code TEXT UNIQUE NOT NULL,
+  amount INTEGER NOT NULL,
+  status TEXT DEFAULT 'issued',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- RLS
+ALTER TABLE e_vouchers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own vouchers"
+  ON e_vouchers FOR SELECT
+  USING ( auth.uid() = user_id );
+
+CREATE POLICY "Admins can view all vouchers"
+  ON e_vouchers FOR SELECT
+  USING ( is_admin() );
+
+CREATE POLICY "Admins can insert vouchers"
+  ON e_vouchers FOR INSERT
+  WITH CHECK ( is_admin() );
+

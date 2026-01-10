@@ -103,15 +103,96 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   };
 
   const handleSponsorAction = async (id: string, action: 'approved' | 'rejected') => {
-    const { error } = await supabase
-      .from('event_sponsorships')
-      .update({ status: action })
-      .eq('id', id);
+    try {
+      // 1. Update Status
+      const { error } = await supabase
+        .from('event_sponsorships')
+        .update({ status: action })
+        .eq('id', id);
 
-    if (!error) {
+      if (error) throw error;
+
+      // 2. If Approved, Generate E-Voucher
+      if (action === 'approved') {
+        const sponsor = sponsorships.find(s => s.id === id);
+        if (sponsor) {
+          await generateVoucher(sponsor.user_id, sponsor.event_id || 'alumni-meet-2026', 'sponsorship', sponsor.amount);
+        }
+      }
+
       fetchSponsorships(); // Refresh list
-    } else {
-      alert('Failed to update sponsorship status');
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Failed to update status');
+    }
+  };
+
+  // Helper to generate Invoice / Receipt
+  const generateVoucher = async (userId: string, eventId: string, type: 'registration' | 'sponsorship', amount: number) => {
+    try {
+      const year = new Date().getFullYear();
+      const code = `INV-${year}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      const { error } = await supabase
+        .from('e_vouchers')
+        .insert({
+          user_id: userId,
+          event_id: eventId,
+          type,
+          code,
+          amount
+        });
+
+      if (error) throw error;
+      console.log('Invoice generated:', code);
+    } catch (err) {
+      console.error('Error generating invoice:', err);
+    }
+  };
+
+  const generateMissingInvoices = async () => {
+    if (!confirm('This will generate invoices for ALL approved registrations and sponsorships that do not have one yet. Continue?')) return;
+
+    setLoadingEvents(true);
+    let count = 0;
+    try {
+      // 1. Get all approved regs & sponsorships
+      const { data: regs } = await supabase.from('event_registrations').select('*').eq('status', 'approved');
+      const { data: spons } = await supabase.from('event_sponsorships').select('*').eq('status', 'approved');
+
+      // 2. Get existing vouchers
+      const { data: vouchers } = await supabase.from('e_vouchers').select('user_id, type');
+      const updatedVouchers = vouchers || [];
+
+      // 3. Check & Generate
+      // For Registrations
+      if (regs) {
+        for (const r of regs) {
+          const exists = updatedVouchers.some(v => v.user_id === r.user_id && v.type === 'registration');
+          if (!exists) {
+            await generateVoucher(r.user_id, 'alumni-meet-2026', 'registration', r.amount_paid || 300);
+            count++;
+          }
+        }
+      }
+
+      // For Sponsorships
+      if (spons) {
+        for (const s of spons) {
+          const exists = updatedVouchers.some(v => v.user_id === s.user_id && v.type === 'sponsorship');
+          if (!exists) {
+            await generateVoucher(s.user_id, s.event_id || 'alumni-meet-2026', 'sponsorship', s.amount);
+            count++;
+          }
+        }
+      }
+
+      alert(`Successfully generated ${count} missing invoices.`);
+    } catch (err) {
+      console.error("Backfill error", err);
+      alert("Error generating invoices");
+    } finally {
+      setLoadingEvents(false);
     }
   };
 
@@ -356,7 +437,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
       'Last Name': reg.lastName,
       'Mobile': reg.mobile,
       'Attending': reg.attending ? 'Yes' : 'No',
-      'Meal Preference': reg.meal_preference || '-',
       'Total Participants': reg.total_participants,
     }));
 
@@ -409,6 +489,13 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
       setEventRegistrations(prev =>
         prev.map(r => r.id === registrationId ? { ...r, status: 'approved' } : r)
       );
+
+      // Generate Voucher
+      const reg = eventRegistrations.find(r => r.id === registrationId);
+      if (reg) {
+        await generateVoucher(reg.user_id, 'alumni-meet-2026', 'registration', reg.amount_paid || 300);
+      }
+
     } catch (err) {
       console.error('Error approving registration:', err);
       alert('Failed to approve registration');
@@ -486,7 +573,14 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm"
               >
                 <Download size={18} />
+                <Download size={18} />
                 Export to Excel
+              </button>
+              <button
+                onClick={generateMissingInvoices}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm"
+              >
+                Config: Generate Missing Receipts
               </button>
             </div>
 
@@ -500,14 +594,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                 <div className="text-purple-600 dark:text-purple-400 font-medium text-sm mb-1 flex items-center gap-1"><Users size={14} /> Total Participants</div>
                 <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{eventStats.totalPax}</div>
               </div>
-              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800">
-                <div className="text-green-600 dark:text-green-400 font-medium text-sm mb-1 flex items-center gap-1"><Utensils size={14} /> Veg Meals</div>
-                <div className="text-2xl font-bold text-green-900 dark:text-green-100">{eventStats.vegCount}</div>
-              </div>
-              <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
-                <div className="text-red-600 dark:text-red-400 font-medium text-sm mb-1 flex items-center gap-1"><Utensils size={14} /> Non-Veg Meals</div>
-                <div className="text-2xl font-bold text-red-900 dark:text-red-100">{eventStats.nonVegCount}</div>
-              </div>
             </div>
 
             {/* Table */}
@@ -518,7 +604,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                     <th className="px-6 py-4">Alumni</th>
                     <th className="px-6 py-4">Contact</th>
                     <th className="px-6 py-4 text-center">Attending</th>
-                    <th className="px-6 py-4">Meal Pref</th>
                     <th className="px-6 py-4 text-center">Participants</th>
                     <th className="px-6 py-4">Receipt</th>
                     <th className="px-6 py-4 text-center">Status</th>
@@ -553,15 +638,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
                               No
                             </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          {reg.meal_preference === 'Veg' ? (
-                            <span className="text-green-600 dark:text-green-400 font-medium">Veg</span>
-                          ) : reg.meal_preference === 'Non-Veg' ? (
-                            <span className="text-red-600 dark:text-red-400 font-medium">Non-Veg</span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-center font-semibold text-gray-900 dark:text-white">
