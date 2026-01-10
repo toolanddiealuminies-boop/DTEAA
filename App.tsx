@@ -13,6 +13,7 @@ import HomePage from './components/home/HomePage';
 import GalleryPage from './components/GalleryPage';
 import AboutPage from './components/AboutPage';
 import ConfirmationModal from './components/ConfirmationModal';
+import GuestSponsorPage from './components/GuestSponsorPage';
 
 const initialUserData: UserData = {
   id: '',
@@ -84,8 +85,11 @@ const App: React.FC = () => {
   const [showGallery, setShowGallery] = useState(false); // Gallery page state
   const [showAbout, setShowAbout] = useState(false); // About page state
   const [showHomePage, setShowHomePage] = useState(false); // Home page state override
+  const [isSponsorPage, setIsSponsorPage] = useState(window.location.pathname === '/sponsor-us'); // New state for Guest Sponsor Page
 
   // fetch profile by user id and update local state (normalized schema)
+
+
   const fetchUserProfile = async (userId: string) => {
     // Fetch from all normalized tables
     const [profileRes, personalRes, contactRes, employeeRes, entrepreneurRes, openToWorkRes, privacyRes] = await Promise.all([
@@ -605,6 +609,7 @@ const App: React.FC = () => {
       setShowLogin(false);
       setShowGallery(false);
       setShowAbout(false);
+      setIsSponsorPage(false);
       setShowHomePage(false); // Default to Main Logic
 
       if (path === '/login') {
@@ -617,6 +622,8 @@ const App: React.FC = () => {
         if (userData?.role === 'admin') setIsAdminView(true);
       } else if (path === '/dashboard') {
         if (session) setShowHomePage(false); // Triggers dashboard view
+      } else if (path === '/sponsor-us') {
+        setIsSponsorPage(true);
       } else {
         // Home or unknown -> Default view
         if (session) setShowHomePage(true); // Explicit home for logged in
@@ -632,7 +639,7 @@ const App: React.FC = () => {
     }, 100);
 
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [session, userData?.role]); // Re-bind if auth state changes
+  }, [session, userData]); // Re-bind if auth state changes
 
   // Update URL when State Changes
   useEffect(() => {
@@ -641,6 +648,7 @@ const App: React.FC = () => {
     else if (showAbout) path = '/about';
     else if (isAdminView) path = '/admin';
     else if (showLogin && !session) path = '/login';
+    else if (isSponsorPage) path = '/sponsor-us';
     else if (session && !showHomePage && isRegistered) path = '/dashboard';
     else path = '/';
 
@@ -648,7 +656,7 @@ const App: React.FC = () => {
     if (window.location.pathname !== path) {
       window.history.pushState(null, '', path);
     }
-  }, [showGallery, showAbout, isAdminView, showLogin, session, showHomePage, isRegistered]);
+  }, [showGallery, showAbout, isAdminView, showLogin, session, showHomePage, isRegistered, isSponsorPage]);
   // -------------------------------------------------------------
 
   // logout
@@ -1254,6 +1262,12 @@ const App: React.FC = () => {
       userId={userData?.id}
     />;
   };
+
+  // --- Guest Sponsorship Page Check ---
+  // --- Guest Sponsorship Page Check ---
+  if (isSponsorPage) {
+    return <GuestSponsorPage />;
+  }
 
   // If showing Gallery page
   if (showGallery) {

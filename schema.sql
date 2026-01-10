@@ -449,6 +449,20 @@ USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
+CREATE POLICY "Allow public guest receipt uploads"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'receipts' AND
+  name LIKE 'guest_%'
+);
+
+CREATE POLICY "Allow public view of guest receipts"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'receipts' AND
+  name LIKE 'guest_%'
+);
+
 -- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
@@ -548,3 +562,72 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+
+-- ============================================
+-- 11. E-VOUCHERS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS e_vouchers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users NOT NULL,
+  event_id TEXT NOT NULL,
+  type TEXT CHECK (type IN ('registration', 'sponsorship')),
+  code TEXT UNIQUE NOT NULL,
+  amount INTEGER NOT NULL,
+  status TEXT DEFAULT 'issued',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- RLS
+ALTER TABLE e_vouchers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own vouchers"
+  ON e_vouchers FOR SELECT
+  USING ( auth.uid() = user_id );
+
+CREATE POLICY "Admins can view all vouchers"
+  ON e_vouchers FOR SELECT
+  USING ( is_admin() );
+
+CREATE POLICY "Admins can insert vouchers"
+  ON e_vouchers FOR INSERT
+  WITH CHECK ( is_admin() );
+
+
+-- ============================================
+-- 12. GUEST SPONSORSHIPS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS guest_sponsorships (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  organization TEXT,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  payment_receipt TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- RLS Policies for guest_sponsorships
+ALTER TABLE guest_sponsorships ENABLE ROW LEVEL SECURITY;
+
+-- Allow ANYONE (including unauthenticated) to insert
+CREATE POLICY "Anyone can insert guest sponsorships"
+  ON guest_sponsorships FOR INSERT
+  WITH CHECK (true);
+
+-- Allow Admins to view all
+CREATE POLICY "Admins can view guest sponsorships"
+  ON guest_sponsorships FOR SELECT
+  USING ( is_admin() );
+
+-- Allow Admins to update (approve/reject)
+CREATE POLICY "Admins can update guest sponsorships"
+  ON guest_sponsorships FOR UPDATE
+  USING ( is_admin() );
+
+-- Grant permissions to anon (public) role for insertion
+GRANT INSERT ON guest_sponsorships TO anon;
+GRANT ALL ON guest_sponsorships TO service_role;
+

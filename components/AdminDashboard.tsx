@@ -33,85 +33,174 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   const fetchSponsorships = async () => {
     setLoadingEvents(true);
     try {
-      // 1. Fetch sponsorships
-      const { data: sponsorsData, error: sponsorError } = await supabase
+      // 1. Fetch Alumni sponsorships
+      const { data: alumniData, error: alumniError } = await supabase
         .from('event_sponsorships')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (sponsorError) {
-        console.error('Sponsorship fetch error:', sponsorError);
-        alert('Error fetching sponsorships: ' + sponsorError.message);
-        throw sponsorError;
+      if (alumniError) throw alumniError;
+
+      // 2. Fetch Guest sponsorships
+      const { data: guestData, error: guestError } = await supabase
+        .from('guest_sponsorships')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (guestError) throw guestError;
+
+      // 3. Process Alumni Data (Fetch User Details)
+      let enrichedAlumni: any[] = [];
+      if (alumniData && alumniData.length > 0) {
+        const userIds = [...new Set(alumniData.map(s => s.user_id))];
+
+        const [personalRes, profileRes, contactRes] = await Promise.all([
+          supabase.from('personal_details').select('user_id, first_name, last_name, email').in('user_id', userIds),
+          supabase.from('profiles').select('id, alumni_id').in('id', userIds),
+          supabase.from('contact_details').select('user_id, mobile').in('user_id', userIds)
+        ]);
+
+        const personalMap = new Map((personalRes.data || []).map(p => [p.user_id, p]));
+        const profileMap = new Map((profileRes.data || []).map(p => [p.id, p]));
+        const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
+
+        enrichedAlumni = alumniData.map(sponsor => {
+          const personal = personalMap.get(sponsor.user_id);
+          const profile = profileMap.get(sponsor.user_id);
+          const contact = contactMap.get(sponsor.user_id);
+
+          return {
+            ...sponsor,
+            type: 'Alumni',
+            firstName: personal?.first_name || 'Unknown',
+            lastName: personal?.last_name || 'User',
+            email: personal?.email || 'N/A',
+            mobile: contact?.mobile || 'N/A',
+            alumniId: sponsor.alumni_id || profile?.alumni_id || 'Pending',
+            organization: 'N/A'
+          };
+        });
       }
 
-      if (!sponsorsData || sponsorsData.length === 0) {
-        setSponsorships([]);
-        return;
-      }
+      // 4. Process Guest Data
+      const enrichedGuests = (guestData || []).map(guest => ({
+        ...guest,
+        type: 'Guest',
+        firstName: guest.full_name, // Guest table has full_name
+        lastName: '(Guest)',
+        alumniId: 'N/A',
+        user_id: null, // Guests have no user_id
+        event_id: 'alumni-meet-2026' // Default logic
+      }));
 
-      // 2. Fetch user details manually
-      const userIds = [...new Set(sponsorsData.map(s => s.user_id))]; // Unique IDs
-      console.log('Fetching details for user IDs:', userIds);
+      // 5. Merge & Sort
+      const combined = [...enrichedAlumni, ...enrichedGuests].sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
-      const [personalRes, profileRes, contactRes] = await Promise.all([
-        supabase
-          .from('personal_details')
-          .select('user_id, first_name, last_name, email')
-          .in('user_id', userIds),
-        supabase
-          .from('profiles')
-          .select('id, alumni_id')
-          .in('id', userIds),
-        supabase
-          .from('contact_details')
-          .select('user_id, mobile')
-          .in('user_id', userIds)
-      ]);
-
-      if (personalRes.error) console.error('Personal details fetch error:', personalRes.error);
-      if (profileRes.error) console.error('Profile details fetch error:', profileRes.error);
-      if (contactRes.error) console.error('Contact details fetch error:', contactRes.error);
-
-      // 3. Map details to sponsorships
-      const personalMap = new Map((personalRes.data || []).map(p => [p.user_id, p]));
-      const profileMap = new Map((profileRes.data || []).map(p => [p.id, p]));
-      const contactMap = new Map((contactRes.data || []).map(c => [c.user_id, c]));
-
-      const enrichedSponsorships = sponsorsData.map(sponsor => {
-        const personal = personalMap.get(sponsor.user_id);
-        const profile = profileMap.get(sponsor.user_id);
-        const contact = contactMap.get(sponsor.user_id);
-
-        return {
-          ...sponsor,
-          firstName: personal?.first_name || 'Unknown',
-          lastName: personal?.last_name || 'User',
-          email: personal?.email || 'N/A',
-          mobile: contact?.mobile || 'N/A',
-          alumniId: sponsor.alumni_id || profile?.alumni_id || 'Pending'
-        };
-      });
-
-      console.log('Final enriched sponsorships:', enrichedSponsorships);
-      setSponsorships(enrichedSponsorships);
+      setSponsorships(combined);
     } catch (err) {
       console.error('Critical Error in fetchSponsorships:', err);
+      alert('Failed to load sponsorships.');
     } finally {
       setLoadingEvents(false);
     }
   };
 
   const handleSponsorAction = async (id: string, action: 'approved' | 'rejected') => {
-    const { error } = await supabase
-      .from('event_sponsorships')
-      .update({ status: action })
-      .eq('id', id);
+    try {
+      const sponsor = sponsorships.find(s => s.id === id);
+      if (!sponsor) return;
 
-    if (!error) {
+      const table = sponsor.type === 'Guest' ? 'guest_sponsorships' : 'event_sponsorships';
+
+      // 1. Update Status
+      const { error } = await supabase
+        .from(table)
+        .update({ status: action })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // 2. If Approved, Generate E-Voucher (Only for Alumni currently as Guests don't have user_id for vouchers table)
+      // Future: Could adapt vouchers table for guests, but for now we skip or simple log.
+      if (action === 'approved' && sponsor.type === 'Alumni') {
+        await generateVoucher(sponsor.user_id, sponsor.event_id || 'alumni-meet-2026', 'sponsorship', sponsor.amount);
+      }
+
       fetchSponsorships(); // Refresh list
-    } else {
-      alert('Failed to update sponsorship status');
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Failed to update status');
+    }
+  };
+
+  // Helper to generate Invoice / Receipt
+  const generateVoucher = async (userId: string, eventId: string, type: 'registration' | 'sponsorship', amount: number) => {
+    try {
+      const year = new Date().getFullYear();
+      const code = `INV-${year}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      const { error } = await supabase
+        .from('e_vouchers')
+        .insert({
+          user_id: userId,
+          event_id: eventId,
+          type,
+          code,
+          amount
+        });
+
+      if (error) throw error;
+      console.log('Invoice generated:', code);
+    } catch (err) {
+      console.error('Error generating invoice:', err);
+    }
+  };
+
+  const generateMissingInvoices = async () => {
+    if (!confirm('This will generate invoices for ALL approved registrations and sponsorships that do not have one yet. Continue?')) return;
+
+    setLoadingEvents(true);
+    let count = 0;
+    try {
+      // 1. Get all approved regs & sponsorships
+      const { data: regs } = await supabase.from('event_registrations').select('*').eq('status', 'approved');
+      const { data: spons } = await supabase.from('event_sponsorships').select('*').eq('status', 'approved');
+
+      // 2. Get existing vouchers
+      const { data: vouchers } = await supabase.from('e_vouchers').select('user_id, type');
+      const updatedVouchers = vouchers || [];
+
+      // 3. Check & Generate
+      // For Registrations
+      if (regs) {
+        for (const r of regs) {
+          const exists = updatedVouchers.some(v => v.user_id === r.user_id && v.type === 'registration');
+          if (!exists) {
+            await generateVoucher(r.user_id, 'alumni-meet-2026', 'registration', r.amount_paid || 300);
+            count++;
+          }
+        }
+      }
+
+      // For Sponsorships
+      if (spons) {
+        for (const s of spons) {
+          const exists = updatedVouchers.some(v => v.user_id === s.user_id && v.type === 'sponsorship');
+          if (!exists) {
+            await generateVoucher(s.user_id, s.event_id || 'alumni-meet-2026', 'sponsorship', s.amount);
+            count++;
+          }
+        }
+      }
+
+      alert(`Successfully generated ${count} missing invoices.`);
+    } catch (err) {
+      console.error("Backfill error", err);
+      alert("Error generating invoices");
+    } finally {
+      setLoadingEvents(false);
     }
   };
 
@@ -140,7 +229,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
           <thead className="bg-gray-50 dark:bg-gray-900/50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Alumni Details</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sponsor Details</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Receipt</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
@@ -154,14 +244,25 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                   {new Date(sponsor.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs font-bold rounded ${sponsor.type === 'Guest' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {sponsor.type}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {sponsor.firstName} {sponsor.lastName}
+                    {sponsor.firstName} {sponsor.lastName !== '(Guest)' && sponsor.lastName}
                   </div>
-                  <div className="text-xs text-primary font-medium">{sponsor.alumni_id || sponsor.alumniId || '—'}</div>
+                  {sponsor.organization && sponsor.organization !== 'N/A' && (
+                    <div className="text-xs text-gray-600 font-semibold">{sponsor.organization}</div>
+                  )}
+                  {sponsor.type === 'Alumni' && (
+                    <div className="text-xs text-primary font-medium">{sponsor.alumniId}</div>
+                  )}
                   <div className="text-xs text-gray-500">{sponsor.mobile}</div>
+                  <div className="text-xs text-gray-400">{sponsor.email}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
-                  ₹{sponsor.amount}
+                  ₹{sponsor.amount?.toLocaleString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:underline">
                   {sponsor.payment_receipt ? (
@@ -356,7 +457,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
       'Last Name': reg.lastName,
       'Mobile': reg.mobile,
       'Attending': reg.attending ? 'Yes' : 'No',
-      'Meal Preference': reg.meal_preference || '-',
       'Total Participants': reg.total_participants,
     }));
 
@@ -409,6 +509,13 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
       setEventRegistrations(prev =>
         prev.map(r => r.id === registrationId ? { ...r, status: 'approved' } : r)
       );
+
+      // Generate Voucher
+      const reg = eventRegistrations.find(r => r.id === registrationId);
+      if (reg) {
+        await generateVoucher(reg.user_id, 'alumni-meet-2026', 'registration', reg.amount_paid || 300);
+      }
+
     } catch (err) {
       console.error('Error approving registration:', err);
       alert('Failed to approve registration');
@@ -486,7 +593,14 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm"
               >
                 <Download size={18} />
+                <Download size={18} />
                 Export to Excel
+              </button>
+              <button
+                onClick={generateMissingInvoices}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm"
+              >
+                Config: Generate Missing Receipts
               </button>
             </div>
 
@@ -500,14 +614,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                 <div className="text-purple-600 dark:text-purple-400 font-medium text-sm mb-1 flex items-center gap-1"><Users size={14} /> Total Participants</div>
                 <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{eventStats.totalPax}</div>
               </div>
-              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800">
-                <div className="text-green-600 dark:text-green-400 font-medium text-sm mb-1 flex items-center gap-1"><Utensils size={14} /> Veg Meals</div>
-                <div className="text-2xl font-bold text-green-900 dark:text-green-100">{eventStats.vegCount}</div>
-              </div>
-              <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
-                <div className="text-red-600 dark:text-red-400 font-medium text-sm mb-1 flex items-center gap-1"><Utensils size={14} /> Non-Veg Meals</div>
-                <div className="text-2xl font-bold text-red-900 dark:text-red-100">{eventStats.nonVegCount}</div>
-              </div>
             </div>
 
             {/* Table */}
@@ -518,7 +624,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                     <th className="px-6 py-4">Alumni</th>
                     <th className="px-6 py-4">Contact</th>
                     <th className="px-6 py-4 text-center">Attending</th>
-                    <th className="px-6 py-4">Meal Pref</th>
                     <th className="px-6 py-4 text-center">Participants</th>
                     <th className="px-6 py-4">Receipt</th>
                     <th className="px-6 py-4 text-center">Status</th>
@@ -553,15 +658,6 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
                               No
                             </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          {reg.meal_preference === 'Veg' ? (
-                            <span className="text-green-600 dark:text-green-400 font-medium">Veg</span>
-                          ) : reg.meal_preference === 'Non-Veg' ? (
-                            <span className="text-red-600 dark:text-red-400 font-medium">Non-Veg</span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-center font-semibold text-gray-900 dark:text-white">
