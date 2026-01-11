@@ -70,17 +70,15 @@ const EventCard: React.FC<{ event: Event; onViewDetails: () => void; onSponsorCl
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-4 sm:mt-0 sm:self-center">
-        {event.registrationStatus && (
-          <Button
-            variant="default" // Primary style for Sponsor
-            size="sm"
-            onClick={() => onSponsorClick && onSponsorClick(event.id)}
-            icon={<Heart className="w-4 h-4 fill-current" />}
-            className="w-full sm:w-auto flex-shrink-0 bg-red-500 hover:bg-red-600 text-white border-red-500"
-          >
-            Sponsor
-          </Button>
-        )}
+        <Button
+          variant="default" // Primary style for Sponsor
+          size="sm"
+          onClick={() => onSponsorClick && onSponsorClick(event.id)}
+          icon={<Heart className="w-4 h-4 fill-current" />}
+          className="w-full sm:w-auto flex-shrink-0 bg-red-500 hover:bg-red-600 text-white border-red-500"
+        >
+          Sponsor
+        </Button>
         <Button
           variant={event.registrationStatus ? "outline" : "ghost"}
           size="sm"

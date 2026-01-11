@@ -3,7 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { UserData } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
-import { Download, Users, Ticket, UserCheck, Utensils, Heart } from 'lucide-react';
+import { Download, Users, Ticket, UserCheck, Utensils, Heart, FileText, Eye } from 'lucide-react';
+import InvoiceModal from './dashboard/InvoiceModal';
 
 interface Props {
   users: UserData[];
@@ -23,10 +24,104 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   const [rejectionComments, setRejectionComments] = useState('');
 
   // Event Dashboard State
-  const [activeView, setActiveView] = useState<'verifications' | 'events' | 'sponsorships'>('verifications');
+  const [activeView, setActiveView] = useState<'verifications' | 'events' | 'sponsorships' | 'invoices'>('verifications');
   const [eventRegistrations, setEventRegistrations] = useState<any[]>([]);
   const [sponsorships, setSponsorships] = useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // Invoices State
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [viewInvoice, setViewInvoice] = useState<any | null>(null);
+
+  const fetchInvoices = async () => {
+    setLoadingInvoices(true);
+    try {
+      // 1. Fetch User Vouchers (Invoices)
+      const { data: voucherData, error: voucherError } = await supabase
+        .from('e_vouchers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (voucherError) throw voucherError;
+
+      // 2. Fetch Guest Sponsorships (Approved ones serve as invoices)
+      const { data: guestData, error: guestError } = await supabase
+        .from('guest_sponsorships')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (guestError) throw guestError;
+
+      // 3. Enrich User Invoices
+      const enrichedVouchers = voucherData.map(voucher => {
+        const user = users.find(u => u.id === voucher.user_id);
+        return {
+          id: voucher.id,
+          date: voucher.created_at,
+          invoiceNo: voucher.code,
+          payerName: user ? `${user.personal.firstName} ${user.personal.lastName}` : 'Unknown User',
+          payerType: 'Alumni',
+          alumniId: user?.alumniId || 'N/A',
+          amount: voucher.amount,
+          description: voucher.type === 'registration' ? 'Alumni Meet Registration' : 'Event Sponsorship',
+          category: voucher.type,
+          status: 'Paid',
+          source: 'System'
+        };
+      });
+
+      // 4. Enrich Guest Invoices
+      const enrichedGuests = guestData.map(guest => ({
+        id: guest.id,
+        date: guest.created_at,
+        invoiceNo: `INV-GST-${guest.created_at.substring(0, 10).replace(/-/g, '')}-${guest.id.substring(0, 4).toUpperCase()}`,
+        payerName: guest.full_name,
+        payerType: 'Guest',
+        alumniId: 'N/A',
+        amount: guest.amount,
+        description: 'Guest Sponsorship',
+        category: 'sponsorship',
+        status: 'Paid',
+        source: 'Guest'
+      }));
+
+      // 5. Combine and Sort
+      const allInvoices = [...enrichedVouchers, ...enrichedGuests].sort((a, b) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
+      setInvoices(allInvoices);
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+      alert('Failed to load invoices.');
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'invoices') fetchInvoices();
+  }, [activeView]);
+
+  const exportInvoicesToExcel = () => {
+    const dataToExport = invoices.map(inv => ({
+      'Date': new Date(inv.date).toLocaleDateString(),
+      'Invoice No': inv.invoiceNo,
+      'Payer Name': inv.payerName,
+      'Payer Type': inv.payerType,
+      'Alumni ID': inv.alumniId,
+      'Description': inv.description,
+      'Amount': inv.amount,
+      'Status': inv.status
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tax_Invoices_Ledger");
+    XLSX.writeFile(wb, "Tax_Invoices_Ledger.xlsx");
+  };
 
   // ... (existing code)
 
@@ -291,6 +386,86 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
               <tr>
                 <td colSpan={6} className="px-6 py-10 text-center text-gray-500">No sponsorships found.</td>
               </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderInvoicesTable = () => (
+    <div className="bg-white dark:bg-dark-card rounded-lg shadow overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tax Invoices Ledger</h3>
+          <p className="text-xs text-gray-500">Consolidated list of all issued receipts and guest sponsorships.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={generateMissingInvoices} className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2">
+            Generate Missing IDs
+          </button>
+          <button onClick={exportInvoicesToExcel} className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition">
+            <Download size={14} />
+            Export Ledger
+          </button>
+          <button onClick={fetchInvoices} className="text-primary hover:underline text-sm font-medium">Refresh</button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-900/50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Invoice No</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payer</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-dark-card divide-y divide-gray-200 dark:divide-gray-800">
+            {loadingInvoices ? (
+              <tr><td colSpan={6} className="px-6 py-8 text-center">Loading ledger...</td></tr>
+            ) : invoices.length === 0 ? (
+              <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No invoices found.</td></tr>
+            ) : (
+              invoices.map((inv) => (
+                <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(inv.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700 dark:text-gray-300">
+                    {inv.invoiceNo}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {inv.payerName}
+                    </div>
+                    <div className="text-xs text-gray-500">{inv.alumniId !== 'N/A' ? inv.alumniId : ''}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    {inv.description}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">
+                    ₹{inv.amount?.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-bold rounded ${inv.payerType === 'Guest' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {inv.payerType}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => setViewInvoice(inv)}
+                      className="text-blue-600 hover:text-blue-900 transition-colors"
+                      title="View Invoice"
+                    >
+                      <Eye size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
@@ -575,10 +750,30 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
             <Heart className="w-4 h-4" />
             Sponsorships
           </button>
+          <button
+            onClick={() => setActiveView('invoices')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2
+            ${activeView === 'invoices' ? 'bg-primary text-white shadow-md' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
+          >
+            <FileText className="w-4 h-4" />
+            Invoices
+          </button>
         </div>
       </div>
-
       <div className="p-6">
+        <InvoiceModal
+          isOpen={!!viewInvoice}
+          onClose={() => setViewInvoice(null)}
+          userName={viewInvoice?.payerName || ''}
+          alumniId={viewInvoice?.alumniId || ''}
+          invoice={viewInvoice ? {
+            code: viewInvoice.invoiceNo,
+            created_at: viewInvoice.date,
+            amount: viewInvoice.amount,
+            type: viewInvoice.category
+          } : null}
+        />
+
         {activeView === 'events' ? (
           <div className="animate-fade-in space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -593,14 +788,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm"
               >
                 <Download size={18} />
-                <Download size={18} />
                 Export to Excel
-              </button>
-              <button
-                onClick={generateMissingInvoices}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm"
-              >
-                Config: Generate Missing Receipts
               </button>
             </div>
 
@@ -722,6 +910,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
           </div>
         ) : activeView === 'sponsorships' ? (
           renderSponsorshipsTable()
+        ) : activeView === 'invoices' ? (
+          renderInvoicesTable()
         ) : (
           <>
             {/* Search & Filters */}
