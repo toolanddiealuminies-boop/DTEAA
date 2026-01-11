@@ -153,7 +153,7 @@ const EventRegistrationModal: React.FC<EventRegistrationModalProps> = ({ isOpen,
                 event_id: 'alumni-meet-2026',
                 attending: attending,
                 meal_preference: null, // Removed per user request
-                total_participants: attending ? totalParticipants : 0,
+                total_participants: attending ? totalParticipants : null,
                 amount_paid: attending ? REGISTRATION_FEE : 0,
                 payment_receipt: receiptUrl,
                 status: 'pending', // Reset to pending ONLY if re-submitting (e.g. from rejected)
