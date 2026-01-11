@@ -130,8 +130,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
       setSponsorships(sponsorData || []);
       setVouchers(voucherData || []);
 
-      // Show popup if registered but NOT sponsored
-      if (isRegisteredForAny && !alreadySponsored) {
+      // Show popup if NOT sponsored yet (regardless of registration)
+      if (!alreadySponsored) {
         // slight delay for better UX
         setTimeout(() => setShowPromoPopup(true), 2000);
       }
