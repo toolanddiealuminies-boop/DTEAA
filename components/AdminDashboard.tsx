@@ -3,8 +3,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { UserData } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
-import { Download, Users, Ticket, UserCheck, Utensils, Heart, FileText, Eye } from 'lucide-react';
+import { Download, Users, Ticket, UserCheck, Utensils, Heart, FileText, Eye, Settings } from 'lucide-react';
 import InvoiceModal from './dashboard/InvoiceModal';
+import AdminEventManager from './dashboard/AdminEventManager';
 
 interface Props {
   users: UserData[];
@@ -24,7 +25,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   const [rejectionComments, setRejectionComments] = useState('');
 
   // Event Dashboard State
-  const [activeView, setActiveView] = useState<'verifications' | 'events' | 'sponsorships' | 'invoices'>('verifications');
+  const [activeView, setActiveView] = useState<'verifications' | 'events' | 'sponsorships' | 'invoices' | 'manage-events'>('verifications');
   const [eventRegistrations, setEventRegistrations] = useState<any[]>([]);
   const [sponsorships, setSponsorships] = useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -758,6 +759,14 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
             <FileText className="w-4 h-4" />
             Invoices
           </button>
+          <button
+            onClick={() => setActiveView('manage-events')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2
+            ${activeView === 'manage-events' ? 'bg-primary text-white shadow-md' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
+          >
+            <Settings className="w-4 h-4" />
+            Manage Events
+          </button>
         </div>
       </div>
       <div className="p-6">
@@ -912,6 +921,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
           renderSponsorshipsTable()
         ) : activeView === 'invoices' ? (
           renderInvoicesTable()
+        ) : activeView === 'manage-events' ? (
+          <AdminEventManager />
         ) : (
           <>
             {/* Search & Filters */}
@@ -1005,9 +1016,9 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                           </div>
                         </div>
 
-                        {user.payment_receipt ? (
+                        {user.paymentReceipt ? (
                           <img
-                            src={user.payment_receipt}
+                            src={user.paymentReceipt}
                             alt="receipt"
                             className="w-16 h-12 object-cover rounded border border-gray-200 dark:border-gray-700"
                             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -1020,8 +1031,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                       <div className="flex items-center space-x-2 ml-4">
                         <div className="text-sm mr-2 text-right hidden sm:block">
                           <div className="text-xs text-gray-500 dark:text-gray-400">Payment Receipt:</div>
-                          <div className={`text-sm ${user.payment_receipt ? 'text-green-700 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                            {user.payment_receipt ? 'Uploaded' : 'Missing'}
+                          <div className={`text-sm ${user.paymentReceipt ? 'text-green-700 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                            {user.paymentReceipt ? 'Uploaded' : 'Missing'}
                           </div>
                         </div>
                         <button
@@ -1221,15 +1232,15 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                   {/* Payment Receipt */}
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-light-text-primary dark:text-dark-text-primary">Payment Receipt</h4>
-                    {selected.payment_receipt ? (
+                    {selected.paymentReceipt ? (
                       <div>
                         <img
-                          src={selected.payment_receipt}
+                          src={selected.paymentReceipt}
                           alt="Payment Receipt"
                           className="max-h-[400px] w-full object-contain border border-gray-200 dark:border-gray-700 rounded bg-black/5"
                         />
                         <a
-                          href={selected.payment_receipt}
+                          href={selected.paymentReceipt}
                           target="_blank"
                           rel="noreferrer"
                           className="text-blue-600 dark:text-blue-400 text-sm mt-2 inline-block hover:underline"

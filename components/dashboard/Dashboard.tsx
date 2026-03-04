@@ -8,6 +8,7 @@ import UpcomingEventsSection, { Event } from './UpcomingEventsSection';
 import ProfileEditForm from './ProfileEditForm';
 import AlumniDirectory from './AlumniDirectory';
 import ProfilePage from '../ProfilePage';
+import PrivacySettingsTab from './PrivacySettingsTab';
 import Footer from '../home/Footer';
 import { supabase } from '../../lib/supabaseClient';
 import type { UserData } from '../../types';
@@ -17,6 +18,7 @@ import SponsorPromoPopup from '../SponsorPromoPopup';
 import VoucherCard from './VoucherCard';
 import InvoiceModal from './InvoiceModal';
 import { Heart } from 'lucide-react';
+import PaymentInfoCard from './PaymentInfoCard';
 
 interface DashboardProps {
   userData: UserData;
@@ -41,15 +43,16 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
   const getInitialTab = () => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
-    if (tab && ['dashboard', 'directory', 'events', 'profile'].includes(tab)) {
-      return tab as 'dashboard' | 'directory' | 'events' | 'profile';
+    if (tab && ['dashboard', 'directory', 'events', 'profile', 'privacy'].includes(tab)) {
+      return tab as 'dashboard' | 'directory' | 'events' | 'profile' | 'privacy';
     }
     return 'dashboard';
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile'>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'directory' | 'events' | 'profile' | 'privacy'>(getInitialTab);
   const [events, setEvents] = useState<Event[]>(mockEvents);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editInitialStep, setEditInitialStep] = useState(0);
   const [localUserData, setLocalUserData] = useState<UserData>(userData);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -77,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab && ['dashboard', 'directory', 'events', 'profile'].includes(tab)) {
+      if (tab && ['dashboard', 'directory', 'events', 'profile', 'privacy'].includes(tab)) {
         setActiveTab(tab as any);
       } else {
         setActiveTab('dashboard');
@@ -130,8 +133,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
       setSponsorships(sponsorData || []);
       setVouchers(voucherData || []);
 
-      // Show popup if NOT sponsored yet (regardless of registration)
-      if (!alreadySponsored) {
+      // Show popup if NOT sponsored yet AND there are future events
+      const hasFutureEvents = mockEvents.some(e => new Date(e.date) >= new Date());
+      if (!alreadySponsored && hasFutureEvents) {
         // slight delay for better UX
         setTimeout(() => setShowPromoPopup(true), 2000);
       }
@@ -178,7 +182,28 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
     setActiveTab('profile');
   };
 
+  const getFirstIncompleteStep = (data: UserData): number => {
+    // Step 0: Personal - check required fields
+    const p = data.personal;
+    if (!p.firstName || !p.lastName || !p.passOutYear || !p.dob || !p.bloodGroup || !p.highestQualification || !p.email) {
+      return 0;
+    }
+    // Step 1: Contact - check required fields
+    const c = data.contact;
+    if (!c.mobile || !c.presentAddress?.country || !c.presentAddress?.state || !c.presentAddress?.city) {
+      return 1;
+    }
+    // Step 2: Experience - optional but if empty, suggest
+    if (data.experience.employee.length === 0 && data.experience.entrepreneur.length === 0) {
+      return 2;
+    }
+    // Step 3: Privacy
+    return 3;
+  };
+
   const handleCompleteProfile = () => {
+    const step = getFirstIncompleteStep(localUserData);
+    setEditInitialStep(step);
     setIsEditingProfile(true);
   };
 
@@ -385,6 +410,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
           userData={localUserData}
           onSave={handleSaveProfile}
           onCancel={handleCancelEdit}
+          initialStep={editInitialStep}
         />
       );
     }
@@ -426,6 +452,16 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
               </motion.div>
             </div>
 
+            {/* Payment Info for Pending/Rejected Users */}
+            {localUserData.status !== 'verified' && (
+              <motion.div variants={itemVariants}>
+                <PaymentInfoCard
+                  status={localUserData.status}
+                  rejectionComments={localUserData.rejectionComments}
+                />
+              </motion.div>
+            )}
+
             {/* My E-Vouchers - Show only if exists */}
             {/* My E-Vouchers - Show only if exists */}
             {vouchers.length > 0 && (
@@ -444,15 +480,17 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
               </div>
             )}
 
-            {/* Upcoming Events - Full Width */}
-            <motion.div variants={itemVariants}>
-              <UpcomingEventsSection
-                events={events} // Pass state events
-                onViewDetails={handleEventDetails}
-                onBrowseAll={handleBrowseAllEvents}
-                onSponsorClick={handleSponsorClick}
-              />
-            </motion.div>
+            {/* Upcoming Events - Full Width (only show future events on dashboard) */}
+            {events.filter(e => new Date(e.date) >= new Date()).length > 0 && (
+              <motion.div variants={itemVariants}>
+                <UpcomingEventsSection
+                  events={events.filter(e => new Date(e.date) >= new Date())}
+                  onViewDetails={handleEventDetails}
+                  onBrowseAll={handleBrowseAllEvents}
+                  onSponsorClick={handleSponsorClick}
+                />
+              </motion.div>
+            )}
 
             {/* My Contributions Section */}
             {/* My Contributions Section */}
@@ -693,6 +731,18 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
 
       case 'profile':
         return <ProfilePage userData={localUserData} />;
+
+      case 'privacy':
+        return (
+          <PrivacySettingsTab
+            userData={localUserData}
+            onUpdate={(updatedPrivacy) => {
+              const newUserData = { ...localUserData, privacy: updatedPrivacy };
+              setLocalUserData(newUserData);
+              if (onUserDataUpdate) onUserDataUpdate(newUserData);
+            }}
+          />
+        );
 
       default:
         return null;

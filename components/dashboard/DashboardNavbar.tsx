@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, User, ChevronDown } from 'lucide-react';
+import { Menu, X, LogOut, User, ChevronDown, Shield } from 'lucide-react';
 
 interface DashboardNavbarProps {
   userName: string;
   profilePhoto?: string;
-  activeTab: 'dashboard' | 'directory' | 'events' | 'profile';
-  onTabChange: (tab: 'dashboard' | 'directory' | 'events' | 'profile') => void;
+  activeTab: 'dashboard' | 'directory' | 'events' | 'profile' | 'privacy';
+  onTabChange: (tab: 'dashboard' | 'directory' | 'events' | 'profile' | 'privacy') => void;
   onLogout: () => void;
   onHomeClick?: () => void;
 }
@@ -47,6 +47,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
     { name: 'Directory', tab: 'directory' as const },
     { name: 'Events', tab: 'events' as const },
     { name: 'Profile', tab: 'profile' as const },
+    { name: 'Privacy', tab: 'privacy' as const },
   ];
 
   return (

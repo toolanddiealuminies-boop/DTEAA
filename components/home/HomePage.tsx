@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Hero from './Hero';
-import EventBanner from './EventBanner';
 import About from './About';
 import OrganizationChart from './OrganizationChart';
 import Gallery from './Gallery';

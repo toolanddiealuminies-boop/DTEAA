@@ -23,6 +23,7 @@ interface ProfileEditFormProps {
   userData: UserData;
   onSave: (updatedData: UserData) => Promise<void>;
   onCancel: () => void;
+  initialStep?: number;
 }
 
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string; optional?: boolean; error?: string }> = ({ label, id, optional, error, ...props }) => {
@@ -330,9 +331,9 @@ const Stepper: React.FC<{ currentStep: number; steps: string[] }> = ({ currentSt
   );
 };
 
-const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ userData, onSave, onCancel }) => {
+const ProfileEditForm: React.FC<ProfileEditFormProps> = ({ userData, onSave, onCancel, initialStep = 0 }) => {
   const [formData, setFormData] = useState<UserData>({ ...userData });
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [showSpecialization, setShowSpecialization] = useState(!!userData.personal.highestQualification);

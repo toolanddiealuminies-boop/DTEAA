@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       allowedHosts: [
         'dteaa.onrender.com',
-        'dte-alumni-association.onrender.com'],
+        'dte-alumni-association.onrender.com',
+        '1bf4-49-47-240-83.ngrok-free.app'
+      ],
     },
     plugins: [react()],
     define: {

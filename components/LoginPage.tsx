@@ -16,15 +16,21 @@ interface LoginPageProps {
 
 const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
   const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
-    if (error) {
-      console.error('Error logging in with Google:', error);
-      alert('Failed to sign in. Please check the console for details.');
+    try {
+      const redirectTo = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+        },
+      });
+      if (error) {
+        console.error('Error logging in with Google:', error);
+        alert('Failed to sign in. Please check the console for details.');
+      }
+    } catch (err) {
+      console.error('Error logging in with Google:', err);
+      alert('Failed to sign in. Please check your internet connection and Supabase configuration.');
     }
   };
 

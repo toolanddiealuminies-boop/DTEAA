@@ -20,10 +20,10 @@ const Hero: React.FC<HeroProps> = ({ onJoinClick, onLearnMoreClick }) => {
             </div>
 
             {/* Content Container */}
-            <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex justify-center">
 
-                {/* Left Column: Text Content */}
-                <div className="flex flex-col items-center md:items-start text-center md:text-left order-2 md:order-1 space-y-8">
+                {/* Text Content */}
+                <div className="flex flex-col items-center text-center space-y-8 max-w-2xl">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -57,7 +57,7 @@ const Hero: React.FC<HeroProps> = ({ onJoinClick, onLearnMoreClick }) => {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.6 }}
-                        className="flex flex-col sm:flex-row gap-4 w-full md:w-auto"
+                        className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto"
                     >
                         <button
                             onClick={onJoinClick}
@@ -73,33 +73,6 @@ const Hero: React.FC<HeroProps> = ({ onJoinClick, onLearnMoreClick }) => {
                         </button>
                     </motion.div>
                 </div>
-
-                {/* Right Column: Event Flyer */}
-                <motion.div
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="order-1 md:order-2 flex justify-center md:justify-end"
-                >
-                    <div
-                        className="relative group cursor-pointer w-full flex justify-center md:justify-end"
-                        onClick={onJoinClick}
-                    >
-                        <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                        <div className="relative">
-                            <img
-                                src="/events/Alumni_meetup_2026.png"
-                                alt="Alumni Meetup 2026"
-                                className="w-full max-w-lg md:max-w-xl lg:max-w-2xl h-auto rounded-xl shadow-2xl border-4 border-white dark:border-gray-800 transform transition duration-500 group-hover:scale-[1.02]"
-                            />
-                            <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <span className="bg-black/75 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg backdrop-blur-sm">
-                                    Click to Register
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
 
             </div>
         </div>

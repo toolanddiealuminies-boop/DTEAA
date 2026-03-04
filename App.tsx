@@ -14,6 +14,7 @@ import GalleryPage from './components/GalleryPage';
 import AboutPage from './components/AboutPage';
 import ConfirmationModal from './components/ConfirmationModal';
 import GuestSponsorPage from './components/GuestSponsorPage';
+import PendingPaymentPage from './components/PendingPaymentPage';
 
 const initialUserData: UserData = {
   id: '',
@@ -382,60 +383,25 @@ const App: React.FC = () => {
               if (!mounted) return;
               console.log('Profile updated:', payload);
 
-              // Update userData with the new data
-              const newData = payload.new;
+              // Update userData with profile-level fields only (profiles table doesn't have personal/contact/etc.)
+              const newData = payload.new as any;
               if (newData) {
-                const mapped: UserData = {
-                  id: newData.id,
-                  role: newData.role || 'user',
-                  alumniId: newData.alumni_id || '',
-                  status: newData.status || 'pending',
-                  rejectionComments: newData.rejection_comments || '',
-                  paymentReceipt: newData.payment_receipt || '',
-                  personal: {
-                    ...(newData.personal ?? {
-                      firstName: '',
-                      lastName: '',
-                      passOutYear: '',
-                      dob: '',
-                      bloodGroup: '',
-                      email: '',
-                      altEmail: '',
-                      highestQualification: '',
-                      specialization: '',
-                      profilePhoto: '',
-                    }),
-                    profilePhoto: newData.profile_photo || newData.personal?.profilePhoto || '',
-                  },
-                  contact: newData.contact ?? {
-                    address: '',
-                    city: '',
-                    state: '',
-                    pincode: '',
-                    country: '',
-                    mobile: '',
-                    telephone: '',
-                  },
-                  experience: newData.experience ?? {
-                    employee: [],
-                    entrepreneur: [],
-                    isOpenToWork: false,
-                    openToWorkDetails: {
-                      technicalSkills: '',
-                      certifications: '',
-                      softSkills: '',
-                      other: '',
+                // Merge only the profile-level fields, preserving existing personal/contact/experience/privacy
+                setUserData(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    role: newData.role || prev.role,
+                    alumniId: newData.alumni_id || prev.alumniId,
+                    status: newData.status || prev.status,
+                    rejectionComments: newData.rejection_comments ?? prev.rejectionComments,
+                    paymentReceipt: newData.payment_receipt || prev.paymentReceipt,
+                    personal: {
+                      ...prev.personal,
+                      profilePhoto: newData.profile_photo || prev.personal.profilePhoto,
                     },
-                  },
-                  privacy: newData.privacy ?? {
-                    showEmail: true,
-                    showPhone: false,
-                    showCompany: false,
-                    showLocation: false,
-                  },
-                };
-
-                setUserData(mapped);
+                  };
+                });
 
                 // Show notification if status changed to verified
                 if (newData.status === 'verified' && userData?.status !== 'verified') {
@@ -444,6 +410,9 @@ const App: React.FC = () => {
                   setTimeout(() => {
                     setShowVerificationNotification(false);
                   }, 5000);
+
+                  // Re-fetch full profile to ensure all data is fresh
+                  fetchUserProfile(userId);
                 }
               }
             }
@@ -626,7 +595,8 @@ const App: React.FC = () => {
         setIsSponsorPage(true);
       } else {
         // Home or unknown -> Default view
-        if (session) setShowHomePage(true); // Explicit home for logged in
+        // If logged in, keep showHomePage false so dashboard/payment page is shown
+        // If not logged in, show the home page (showHomePage is already false, renderContent falls through to HomePage)
       }
     };
 
@@ -1304,8 +1274,30 @@ const App: React.FC = () => {
     );
   }
 
-  // If user is verified OR PENDING, render Dashboard outside of Layout (it has its own navbar)
-  if (session && isRegistered && (userData?.status === 'verified' || userData?.status === 'pending') && !isAdminView && !showHomePage) {
+  // If user is PENDING, show the payment page instead of Dashboard
+  if (session && isRegistered && userData?.status === 'pending' && !isAdminView && !showHomePage) {
+    return (
+      <>
+        <ConfirmationModal
+          isOpen={showLogoutConfirmation}
+          title="Logout Confirmation"
+          message="Are you sure you want to logout?"
+          confirmText="Logout"
+          cancelText="Cancel"
+          onConfirm={confirmLogout}
+          onCancel={() => setShowLogoutConfirmation(false)}
+        />
+        <PendingPaymentPage
+          userData={userData!}
+          onLogout={handleLogoutClick}
+          onHomeClick={() => setShowHomePage(true)}
+        />
+      </>
+    );
+  }
+
+  // If user is VERIFIED, render Dashboard (it has its own navbar)
+  if (session && isRegistered && userData?.status === 'verified' && !isAdminView && !showHomePage) {
     return (
       <>
         {/* Logout Confirmation Modal */}

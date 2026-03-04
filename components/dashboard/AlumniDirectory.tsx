@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, MapPin, Building2, GraduationCap, ChevronRight } from 'lucide-react';
+import { Search, Users, MapPin, Building2, GraduationCap, ChevronRight, X, Mail, Phone, Briefcase, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import type { UserData, PrivacySettings } from '../../types';
 
@@ -67,6 +67,20 @@ const getCurrentCompany = (member: AlumniMember): { company: string; designation
     return { company: latest.companyName, designation: 'Entrepreneur' };
   }
   return null;
+};
+
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const config = {
+    verified: { label: 'Verified', bg: 'bg-green-100 text-green-700 border-green-200' },
+    pending: { label: 'Pending', bg: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    rejected: { label: 'Rejected', bg: 'bg-red-100 text-red-700 border-red-200' },
+  };
+  const c = config[status as keyof typeof config] || config.pending;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${c.bg}`}>
+      {c.label}
+    </span>
+  );
 };
 
 const AlumniCard: React.FC<{ member: AlumniMember; onViewProfile: (id: string) => void }> = ({ member, onViewProfile }) => {
@@ -140,9 +154,12 @@ const AlumniCard: React.FC<{ member: AlumniMember; onViewProfile: (id: string) =
         )}
       </div>
 
-      <p className={`mt-3 text-sm font-medium ${completenessColor}`}>
-        {completenessLabel}
-      </p>
+      <div className="mt-3 flex items-center justify-between">
+        <p className={`text-sm font-medium ${completenessColor}`}>
+          {completenessLabel}
+        </p>
+        <StatusBadge status={member.status} />
+      </div>
 
       <button
         onClick={() => onViewProfile(member.id)}
@@ -165,6 +182,7 @@ const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({ currentUserId, onView
   const [members, setMembers] = useState<AlumniMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMember, setSelectedMember] = useState<AlumniMember | null>(null);
 
   useEffect(() => {
     fetchMembers();
@@ -173,11 +191,10 @@ const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({ currentUserId, onView
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      // Fetch all verified profiles from normalized tables
+      // Fetch all profiles regardless of status
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, alumni_id, profile_photo, status')
-        .eq('status', 'verified');
+        .select('id, alumni_id, profile_photo, status');
 
       if (profileError) {
         console.error('Error fetching profiles:', profileError);
@@ -389,7 +406,7 @@ const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({ currentUserId, onView
             <Users className="w-12 h-12 text-light-text-secondary mx-auto mb-3" />
             <h3 className="font-semibold text-light-text-primary mb-1">No alumni found</h3>
             <p className="text-sm text-light-text-secondary">
-              {searchQuery ? 'Try adjusting your search' : 'No other verified alumni yet. Be the first to invite your batchmates!'}
+              {searchQuery ? 'Try adjusting your search' : 'No alumni found yet. Be the first to invite your batchmates!'}
             </p>
           </div>
         ) : (
@@ -399,13 +416,158 @@ const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({ currentUserId, onView
                 <AlumniCard
                   key={member.id}
                   member={member}
-                  onViewProfile={onViewProfile}
+                  onViewProfile={(id) => {
+                    const m = members.find(mem => mem.id === id);
+                    if (m) setSelectedMember(m);
+                  }}
                 />
               ))}
             </AnimatePresence>
           </div>
         )}
       </div>
+
+      {/* Profile View Modal */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-light-border"
+          >
+            <div className="sticky top-0 bg-white border-b border-light-border p-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-light-text-primary">Alumni Profile</h2>
+              <button
+                onClick={() => setSelectedMember(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Header */}
+              <div className="flex items-center gap-4">
+                {selectedMember.personal.profilePhoto ? (
+                  <img
+                    src={selectedMember.personal.profilePhoto}
+                    alt={`${selectedMember.personal.firstName} ${selectedMember.personal.lastName}`}
+                    className="w-20 h-20 rounded-full object-cover border-4 border-primary shadow-lg"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                    {(selectedMember.personal.firstName?.[0] || '') + (selectedMember.personal.lastName?.[0] || '')}
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-xl font-bold text-light-text-primary">
+                    {selectedMember.personal.firstName} {selectedMember.personal.lastName}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <GraduationCap className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-light-text-secondary">Batch of {selectedMember.personal.passOutYear}</span>
+                  </div>
+                  <div className="mt-1">
+                    <StatusBadge status={selectedMember.status} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Info - Privacy Aware */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold text-light-text-primary flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  Contact Information
+                </h4>
+
+                {selectedMember.privacy.showEmail && selectedMember.personal.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span className="text-light-text-secondary">{selectedMember.personal.email}</span>
+                  </div>
+                )}
+
+                {selectedMember.privacy.showPhone && selectedMember.contact.mobile && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span className="text-light-text-secondary">{selectedMember.contact.mobile}</span>
+                  </div>
+                )}
+
+                {selectedMember.privacy.showLocation && selectedMember.contact.presentAddress?.city && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span className="text-light-text-secondary">
+                      {[selectedMember.contact.presentAddress.city, selectedMember.contact.presentAddress.state, selectedMember.contact.presentAddress.country].filter(Boolean).join(', ')}
+                    </span>
+                  </div>
+                )}
+
+                {!selectedMember.privacy.showEmail && !selectedMember.privacy.showPhone && !selectedMember.privacy.showLocation && (
+                  <p className="text-sm text-gray-400 italic">This user has chosen to keep their contact details private.</p>
+                )}
+              </div>
+
+              {/* Professional Experience - Privacy Aware */}
+              {selectedMember.privacy.showCompany && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-light-text-primary flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-primary" />
+                    Professional Experience
+                  </h4>
+
+                  {selectedMember.experience.employee.length > 0 && (
+                    <div className="space-y-2">
+                      {selectedMember.experience.employee.map((exp) => (
+                        <div key={exp.id} className="p-3 border-l-4 border-primary bg-primary/5 rounded-r-lg">
+                          <p className="font-medium text-light-text-primary">
+                            {exp.designation} {exp.companyName && `at ${exp.companyName}`}
+                          </p>
+                          <p className="text-xs text-light-text-secondary">
+                            {exp.startDate || ''} - {exp.isCurrentEmployer ? 'Present' : exp.endDate || ''}
+                          </p>
+                          {(exp.city || exp.country) && (
+                            <p className="text-xs text-light-text-secondary mt-0.5">
+                              {[exp.city, exp.state, exp.country].filter(Boolean).join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedMember.experience.entrepreneur.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-light-text-secondary">Businesses</p>
+                      {selectedMember.experience.entrepreneur.map((exp) => (
+                        <div key={exp.id} className="p-3 border-l-4 border-green-500 bg-green-50 rounded-r-lg">
+                          <p className="font-medium text-light-text-primary">{exp.companyName}</p>
+                          {exp.natureOfBusiness && <p className="text-xs text-light-text-secondary">{exp.natureOfBusiness}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedMember.experience.employee.length === 0 && selectedMember.experience.entrepreneur.length === 0 && (
+                    <p className="text-sm text-gray-400 italic">No professional experience listed.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Qualifications */}
+              {selectedMember.personal.highestQualification && (
+                <div>
+                  <h4 className="font-semibold text-light-text-primary mb-2">Education</h4>
+                  <p className="text-sm text-light-text-secondary">
+                    {selectedMember.personal.highestQualification}
+                    {selectedMember.personal.specialization && ` - ${selectedMember.personal.specialization}`}
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
