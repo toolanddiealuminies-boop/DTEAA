@@ -205,7 +205,7 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                             className="w-40 h-auto mx-auto border border-gray-200 rounded-lg shadow-sm"
                                         />
                                         <a
-                                            href="upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&cu=INR"
+                                            href="upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=700&cu=INR"
                                             className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
                                         >
                                             📱 Pay via UPI App

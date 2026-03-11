@@ -17,7 +17,7 @@ interface LoginPageProps {
 const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
   const handleGoogleLogin = async () => {
     try {
-      const redirectTo = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const redirectTo = (import.meta.env.VITE_SITE_URL || window.location.origin).trim();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
