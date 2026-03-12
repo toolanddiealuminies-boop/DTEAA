@@ -1186,17 +1186,25 @@ const App: React.FC = () => {
     // If not logged in, show LoginPage (which is wrapped by the main layout when showLogin is true)
     if (!session && showLogin) return <LoginPage onBack={() => setShowLogin(false)} />;
 
-    // If user registration was rejected, show them the payment page with rejection comments
+    // If user registration was rejected, show them the PendingPaymentPage with rejection banner
     if (isRegistered && userData?.status === 'rejected') {
       return (
-        <RegistrationForm
-          userData={userData}
-          setUserData={setUserData}
-          currentStep={5} // Go directly to payment step
-          setCurrentStep={setCurrentStep}
-          onRegister={handleRegister}
-          isSubmitting={isSubmitting}
-        />
+        <>
+          <ConfirmationModal
+            isOpen={showLogoutConfirmation}
+            title="Logout Confirmation"
+            message="Are you sure you want to logout?"
+            confirmText="Logout"
+            cancelText="Cancel"
+            onConfirm={confirmLogout}
+            onCancel={() => setShowLogoutConfirmation(false)}
+          />
+          <PendingPaymentPage
+            userData={userData!}
+            onLogout={handleLogoutClick}
+            onHomeClick={() => setShowHomePage(true)}
+          />
+        </>
       );
     }
 

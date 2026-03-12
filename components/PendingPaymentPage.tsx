@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Clock, CreditCard, CheckCircle, LogOut, Home, Upload, Loader2, X } from 'lucide-react';
+import { Copy, Check, Clock, CreditCard, CheckCircle, LogOut, Home, Upload, Loader2, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import type { UserData } from '../types';
 import Footer from './home/Footer';
@@ -17,6 +17,7 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
     const [uploading, setUploading] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [error, setError] = useState('');
+    const [selectedAmount, setSelectedAmount] = useState<100 | 700>(700);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -75,7 +76,7 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
         }
     };
 
-    const hasExistingReceipt = !!userData.paymentReceipt && userData.paymentReceipt !== 'ALUMNI_MEET_REGISTRATION';
+    const hasExistingReceipt = !!userData.paymentReceipt && userData.paymentReceipt !== 'ALUMNI_MEET_REGISTRATION' && userData.status !== 'pending' && userData.status !== 'rejected';
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
@@ -114,28 +115,55 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
             <main className="flex-grow p-4 md:p-8">
                 <div className="max-w-3xl mx-auto space-y-6">
 
-                    {/* Status Banner */}
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                <Clock className="w-6 h-6 text-amber-600" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-amber-800 mb-1">Registration Pending Verification</h2>
-                                <p className="text-amber-700 text-sm">
-                                    Hi <strong>{userData.personal.firstName || 'User'}</strong>,
-                                    {hasExistingReceipt
-                                        ? ' your payment receipt has been submitted and is being reviewed by the admin. You will be notified once verified.'
-                                        : ' please complete your payment using the details below and upload the receipt to proceed.'}
-                                </p>
-                                {userData.alumniId && (
-                                    <p className="text-amber-600 text-xs mt-2">
-                                        Alumni ID: <span className="font-mono font-bold">{userData.alumniId}</span>
+                    {/* Rejection Banner */}
+                    {userData.status === 'rejected' && (
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-red-800 mb-1">Registration Rejected</h2>
+                                    <p className="text-red-700 text-sm">
+                                        Hi <strong>{userData.personal.firstName || 'User'}</strong>, your previous registration was rejected for the following reason:
                                     </p>
-                                )}
+                                    {userData.rejectionComments && (
+                                        <div className="mt-2 p-3 bg-red-100/50 border border-red-200 rounded-lg">
+                                            <p className="text-red-800 text-sm font-medium italic">"{userData.rejectionComments}"</p>
+                                        </div>
+                                    )}
+                                    <p className="text-red-600 text-sm mt-3 font-medium">
+                                        Please address the issue and upload a new payment receipt below.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Status Banner */}
+                    {userData.status !== 'rejected' && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                    <Clock className="w-6 h-6 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-amber-800 mb-1">Registration Pending Verification</h2>
+                                    <p className="text-amber-700 text-sm">
+                                        Hi <strong>{userData.personal.firstName || 'User'}</strong>,
+                                        {hasExistingReceipt
+                                            ? ' your payment receipt has been submitted and is being reviewed by the admin. You will be notified once verified.'
+                                            : ' please complete your payment using the details below and upload the receipt to proceed.'}
+                                    </p>
+                                    {userData.alumniId && (
+                                        <p className="text-amber-600 text-xs mt-2">
+                                            Alumni ID: <span className="font-mono font-bold">{userData.alumniId}</span>
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Fee Structure */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -178,6 +206,52 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                         </div>
                         <div className="p-6 space-y-6">
 
+                            {/* Amount Selection */}
+                            <div className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm">
+                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <CreditCard className="w-5 h-5 text-[#003366]" />
+                                    Select Payment Amount
+                                </h4>
+                                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                    <p className="text-xs text-amber-700"><strong>Mobile only:</strong> Amount selection and "Pay via UPI App" button work only on mobile devices. On desktop, scan the QR code or use bank transfer.</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setSelectedAmount(700)}
+                                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                                            selectedAmount === 700
+                                                ? 'border-[#003366] bg-blue-50 shadow-md'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                        }`}
+                                    >
+                                        {selectedAmount === 700 && (
+                                            <div className="absolute top-2 right-2">
+                                                <CheckCircle className="w-5 h-5 text-[#003366]" />
+                                            </div>
+                                        )}
+                                        <p className="text-2xl font-bold text-[#003366]">₹700</p>
+                                        <p className="text-xs text-gray-500 mt-1">Registration + First Year Subscription</p>
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedAmount(100)}
+                                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                                            selectedAmount === 100
+                                                ? 'border-[#003366] bg-blue-50 shadow-md'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                        }`}
+                                    >
+                                        {selectedAmount === 100 && (
+                                            <div className="absolute top-2 right-2">
+                                                <CheckCircle className="w-5 h-5 text-[#003366]" />
+                                            </div>
+                                        )}
+                                        <p className="text-2xl font-bold text-[#003366]">₹100</p>
+                                        <p className="text-xs text-gray-500 mt-1">Registration Fee Only</p>
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* UPI Section */}
                             <div className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm">
                                 <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -185,16 +259,19 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                     UPI Payment
                                 </h4>
                                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <p className="flex-grow font-mono font-semibold bg-white p-3 rounded border border-gray-200 select-all text-gray-800">
+                                    <div className="mb-4">
+                                        <p className="font-mono font-semibold bg-white p-3 rounded border border-gray-200 text-gray-800 text-sm sm:text-base break-all text-center">
                                             334703265956342@cnrb
                                         </p>
                                         <button
                                             onClick={() => handleCopy('334703265956342@cnrb')}
-                                            className="p-3 bg-white border border-gray-200 rounded text-gray-500 hover:text-green-600 hover:border-green-500 transition-all"
-                                            title="Copy UPI ID"
+                                            className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                                copied === '334703265956342@cnrb'
+                                                    ? 'bg-green-50 border border-green-300 text-green-700'
+                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-[#003366] hover:text-[#003366] active:bg-blue-50'
+                                            }`}
                                         >
-                                            {copied === '334703265956342@cnrb' ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
+                                            {copied === '334703265956342@cnrb' ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Tap to Copy UPI ID</>}
                                         </button>
                                     </div>
                                     <div className="text-center">
@@ -205,12 +282,13 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                             className="w-40 h-auto mx-auto border border-gray-200 rounded-lg shadow-sm"
                                         />
                                         <a
-                                            href="upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=700&cu=INR"
+                                            href={`upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=${selectedAmount}&cu=INR`}
                                             className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
                                         >
                                             📱 Pay via UPI App
                                         </a>
-                                        <p className="text-xs text-gray-400 mt-2">Opens GPay, Paytm, PhonePe, CRED etc. (Mobile only)</p>
+                                        <p className="text-xs text-amber-600 font-medium mt-2">Works on mobile only — Opens GPay, Paytm, PhonePe, CRED etc.</p>
+                                        <p className="text-xs text-gray-400 mt-1">On desktop, scan the QR code above or copy the UPI ID to pay manually.</p>
                                     </div>
                                 </div>
                             </div>
