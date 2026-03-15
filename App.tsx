@@ -570,8 +570,20 @@ const App: React.FC = () => {
 
   // --- Browser History Sync (Fix for Back/Forward buttons) ---
   useEffect(() => {
+    const resolveCurrentPath = () => {
+      const url = new URL(window.location.href);
+      const redirectedPath = url.searchParams.get('redirect');
+
+      if (redirectedPath && redirectedPath.startsWith('/')) {
+        window.history.replaceState(null, '', redirectedPath);
+        return redirectedPath;
+      }
+
+      return url.pathname;
+    };
+
     const handlePopState = () => {
-      const path = window.location.pathname;
+      const path = resolveCurrentPath();
       console.log('Navigating to:', path);
 
       // Reset all "page" states first
