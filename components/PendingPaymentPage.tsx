@@ -206,16 +206,12 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                         </div>
                         <div className="p-6 space-y-6">
 
-                            {/* Amount Selection */}
-                            <div className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm">
+                            {/* Amount Selection — visible on mobile only (UPI deep link needs amount) */}
+                            <div className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm md:hidden">
                                 <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <CreditCard className="w-5 h-5 text-[#003366]" />
                                     Select Payment Amount
                                 </h4>
-                                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-                                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                                    <p className="text-xs text-amber-700"><strong>Mobile only:</strong> Amount selection and "Pay via UPI App" button work only on mobile devices. On desktop, scan the QR code or use bank transfer.</p>
-                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setSelectedAmount(700)}
@@ -259,37 +255,82 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                     UPI Payment
                                 </h4>
                                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <div className="mb-4">
-                                        <p className="font-mono font-semibold bg-white p-3 rounded border border-gray-200 text-gray-800 text-sm sm:text-base break-all text-center">
-                                            334703265956342@cnrb
-                                        </p>
-                                        <button
-                                            onClick={() => handleCopy('334703265956342@cnrb')}
-                                            className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                                copied === '334703265956342@cnrb'
-                                                    ? 'bg-green-50 border border-green-300 text-green-700'
-                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-[#003366] hover:text-[#003366] active:bg-blue-50'
-                                            }`}
-                                        >
-                                            {copied === '334703265956342@cnrb' ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Tap to Copy UPI ID</>}
-                                        </button>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-xs text-gray-500 mb-2">Scan QR Code to Pay</p>
-                                        <img
-                                            src="/bank_details/QR_code.JPG"
-                                            alt="Payment QR Code"
-                                            className="w-40 h-auto mx-auto border border-gray-200 rounded-lg shadow-sm"
-                                        />
+
+                                    {/* === MOBILE VIEW === */}
+                                    <div className="md:hidden space-y-4">
+                                        {/* Pay via UPI App — primary action on mobile */}
                                         <a
                                             href={`upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=${selectedAmount}&cu=INR`}
-                                            className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
+                                            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
                                         >
-                                            📱 Pay via UPI App
+                                            📱 Pay ₹{selectedAmount} via UPI App
                                         </a>
-                                        <p className="text-xs text-amber-600 font-medium mt-2">Works on mobile only — Opens GPay, Paytm, PhonePe, CRED etc.</p>
-                                        <p className="text-xs text-gray-400 mt-1">On desktop, scan the QR code above or copy the UPI ID to pay manually.</p>
+                                        <p className="text-xs text-gray-500 text-center">Opens GPay, PhonePe, Paytm, CRED etc.</p>
+
+                                        {/* Divider */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 h-px bg-gray-200"></div>
+                                            <span className="text-xs text-gray-400 font-medium">OR</span>
+                                            <div className="flex-1 h-px bg-gray-200"></div>
+                                        </div>
+
+                                        {/* Copy UPI ID — fallback on mobile */}
+                                        <div>
+                                            <p className="text-xs text-gray-500 mb-2 text-center">Copy UPI ID and pay manually</p>
+                                            <p className="font-mono font-semibold bg-white p-3 rounded border border-gray-200 text-gray-800 text-sm break-all text-center">
+                                                334703265956342@cnrb
+                                            </p>
+                                            <button
+                                                onClick={() => handleCopy('334703265956342@cnrb')}
+                                                className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                                    copied === '334703265956342@cnrb'
+                                                        ? 'bg-green-50 border border-green-300 text-green-700'
+                                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-[#003366] hover:text-[#003366] active:bg-blue-50'
+                                                }`}
+                                            >
+                                                {copied === '334703265956342@cnrb' ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy UPI ID</>}
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    {/* === DESKTOP VIEW === */}
+                                    <div className="hidden md:block space-y-4">
+                                        {/* QR Code — prominent on desktop */}
+                                        <div className="text-center">
+                                            <p className="text-sm font-medium text-gray-700 mb-3">Scan with any UPI App on your phone</p>
+                                            <img
+                                                src="/bank_details/QR_code.JPG"
+                                                alt="Payment QR Code"
+                                                className="w-48 h-auto mx-auto border border-gray-200 rounded-lg shadow-sm"
+                                            />
+                                        </div>
+
+                                        {/* Divider */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 h-px bg-gray-200"></div>
+                                            <span className="text-xs text-gray-400 font-medium">OR</span>
+                                            <div className="flex-1 h-px bg-gray-200"></div>
+                                        </div>
+
+                                        {/* Copy UPI ID — fallback on desktop */}
+                                        <div>
+                                            <p className="text-xs text-gray-500 mb-2 text-center">Copy UPI ID and pay from your phone</p>
+                                            <p className="font-mono font-semibold bg-white p-3 rounded border border-gray-200 text-gray-800 text-base break-all text-center">
+                                                334703265956342@cnrb
+                                            </p>
+                                            <button
+                                                onClick={() => handleCopy('334703265956342@cnrb')}
+                                                className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                                    copied === '334703265956342@cnrb'
+                                                        ? 'bg-green-50 border border-green-300 text-green-700'
+                                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-[#003366] hover:text-[#003366] active:bg-blue-50'
+                                                }`}
+                                            >
+                                                {copied === '334703265956342@cnrb' ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy UPI ID</>}
+                                            </button>
+                                        </div>
+                                    </div>
+
                                 </div>
                             </div>
 

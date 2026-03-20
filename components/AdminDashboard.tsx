@@ -477,7 +477,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   // Search & filter state
   const [query, setQuery] = useState<string>('');
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
 
   // debounce delay in ms
   const DEBOUNCE_MS = 300;
@@ -492,7 +492,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
   const normalize = (s?: string | null) => (s || '').toString().toLowerCase().trim();
 
   // Filter the user lists based on debouncedQuery and status filter
-  const { filteredPending, filteredVerified, totalMatched } = useMemo(() => {
+  const { filteredPending, filteredVerified, filteredRejected, totalMatched } = useMemo(() => {
     const q = normalize(debouncedQuery);
 
     // helper to check if a user matches the query
@@ -510,14 +510,16 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
     // helper to check status filter
     const matchesStatus = (u: UserData) => {
       if (statusFilter === 'all') return true;
-      if (statusFilter === 'pending') return u.status !== 'verified';
+      if (statusFilter === 'pending') return u.status === 'pending';
+      if (statusFilter === 'rejected') return u.status === 'rejected';
       return u.status === 'verified';
     };
 
-    const pending = users.filter(u => u.status !== 'verified' && matchesQuery(u) && matchesStatus(u));
+    const pending = users.filter(u => u.status === 'pending' && matchesQuery(u) && matchesStatus(u));
     const verified = users.filter(u => u.status === 'verified' && matchesQuery(u) && matchesStatus(u));
+    const rejected = users.filter(u => u.status === 'rejected' && matchesQuery(u) && matchesStatus(u));
 
-    return { filteredPending: pending, filteredVerified: verified, totalMatched: pending.length + verified.length };
+    return { filteredPending: pending, filteredVerified: verified, filteredRejected: rejected, totalMatched: pending.length + verified.length + rejected.length };
   }, [users, debouncedQuery, statusFilter]);
 
   const handleVerify = async (id: string) => {
@@ -949,6 +951,7 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                   <option value="all">All</option>
                   <option value="pending">Pending</option>
                   <option value="verified">Verified</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
 
@@ -969,7 +972,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
               </div>
               <div className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
                 <span className="mr-3">Pending: <span className="font-medium text-light-text-primary dark:text-dark-text-primary">{filteredPending.length}</span></span>
-                <span>Verified: <span className="font-medium text-light-text-primary dark:text-dark-text-primary">{filteredVerified.length}</span></span>
+                <span className="mr-3">Verified: <span className="font-medium text-light-text-primary dark:text-dark-text-primary">{filteredVerified.length}</span></span>
+                <span>Rejected: <span className="font-medium text-light-text-primary dark:text-dark-text-primary">{filteredRejected.length}</span></span>
               </div>
             </div>
 
@@ -1054,6 +1058,51 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                 </div>
               )}
             </section>
+
+            {/* Rejected Members */}
+            {filteredRejected.length > 0 && (
+              <section className="mb-8">
+                <h3 className="text-lg text-red-700 dark:text-red-500 font-semibold mb-3">
+                  Rejected Members ({filteredRejected.length})
+                </h3>
+                <div className="space-y-3">
+                  {filteredRejected.map(user => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 border border-red-100 dark:border-red-900/30 rounded-lg bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100/50 dark:hover:bg-red-900/20 transition cursor-pointer"
+                      onClick={() => setSelected(user)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          {user.personal.profilePhoto ? (
+                            <img
+                              src={user.personal.profilePhoto}
+                              alt={`${user.personal.firstName} ${user.personal.lastName}`}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-red-400"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold text-lg">
+                              {(user.personal.firstName?.charAt(0) || '') + (user.personal.lastName?.charAt(0) || '')}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-light-text-primary dark:text-dark-text-primary">
+                            {user.personal.firstName} {user.personal.lastName}
+                          </div>
+                          <div className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{user.personal.email}</div>
+                          {(user as any).rejectionComments && (
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">Reason: {(user as any).rejectionComments}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-sm text-red-600 dark:text-red-400 font-medium whitespace-nowrap">Rejected</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Verified Members */}
             <section>
