@@ -57,10 +57,14 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
             const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
             const publicUrl = urlData?.publicUrl || '';
 
-            // Update profile with the new receipt
+            // Update profile with the new receipt and reset status to pending if previously rejected
             const { error: updateError } = await supabase
                 .from('profiles')
-                .update({ payment_receipt: publicUrl })
+                .update({
+                    payment_receipt: publicUrl,
+                    status: 'pending',
+                    rejection_comments: null
+                })
                 .eq('id', userData.id);
 
             if (updateError) throw updateError;
