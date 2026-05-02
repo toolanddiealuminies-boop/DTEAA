@@ -302,12 +302,6 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
         ctx.fillText(line.trim(), backX + 45, y);
       }
       
-      // Blood Group
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`Blood Group: ${userData.personal.bloodGroup}`, backX + cardWidth / 2, 225);
-      
       // Labels
       ctx.fillStyle = '#666666';
       ctx.font = 'bold 14px Arial, sans-serif';
@@ -444,13 +438,6 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                   <p className="text-white text-base leading-relaxed">
                     {formatAddress() || 'Address not provided'}
-                  </p>
-                </div>
-                
-                {/* Blood Group */}
-                <div className="mt-6">
-                  <p className="text-white text-sm font-semibold">
-                    Blood Group: {userData.personal.bloodGroup}
                   </p>
                 </div>
                 

@@ -430,7 +430,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout, onUserDataUpd
               <motion.div variants={itemVariants}>
                 <WelcomeCard
                   userName={localUserData.personal.firstName || 'User'}
-                  role="Alumni"
+                  role={localUserData.title || 'Alumni'}
                   status={localUserData.status}
                   profilePhoto={localUserData.personal.profilePhoto}
                 />
