@@ -264,7 +264,7 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                     <div className="md:hidden space-y-4">
                                         {/* Pay via UPI App — primary action on mobile */}
                                         <a
-                                            href={`upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=${selectedAmount}&cu=INR`}
+                                            href={`upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=${selectedAmount}&cu=INR&tn=DTEAA%20Alumni%20Meet&tr=DTEAA-${userData.alumniId}-${Date.now()}&mc=8398`}
                                             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
                                         >
                                             📱 Pay ₹{selectedAmount} via UPI App
