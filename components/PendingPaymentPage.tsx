@@ -17,7 +17,7 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
     const [uploading, setUploading] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [error, setError] = useState('');
-    const [selectedAmount, setSelectedAmount] = useState<100 | 700>(700);
+
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -210,47 +210,7 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                         </div>
                         <div className="p-6 space-y-6">
 
-                            {/* Amount Selection — visible on mobile only (UPI deep link needs amount) */}
-                            <div className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm md:hidden">
-                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <CreditCard className="w-5 h-5 text-[#003366]" />
-                                    Select Payment Amount
-                                </h4>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setSelectedAmount(700)}
-                                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                                            selectedAmount === 700
-                                                ? 'border-[#003366] bg-blue-50 shadow-md'
-                                                : 'border-gray-200 bg-white hover:border-gray-300'
-                                        }`}
-                                    >
-                                        {selectedAmount === 700 && (
-                                            <div className="absolute top-2 right-2">
-                                                <CheckCircle className="w-5 h-5 text-[#003366]" />
-                                            </div>
-                                        )}
-                                        <p className="text-2xl font-bold text-[#003366]">₹700</p>
-                                        <p className="text-xs text-gray-500 mt-1">Registration + First Year Subscription</p>
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedAmount(100)}
-                                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                                            selectedAmount === 100
-                                                ? 'border-[#003366] bg-blue-50 shadow-md'
-                                                : 'border-gray-200 bg-white hover:border-gray-300'
-                                        }`}
-                                    >
-                                        {selectedAmount === 100 && (
-                                            <div className="absolute top-2 right-2">
-                                                <CheckCircle className="w-5 h-5 text-[#003366]" />
-                                            </div>
-                                        )}
-                                        <p className="text-2xl font-bold text-[#003366]">₹100</p>
-                                        <p className="text-xs text-gray-500 mt-1">Registration Fee Only</p>
-                                    </button>
-                                </div>
-                            </div>
+
 
                             {/* UPI Section */}
                             <div className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm">
