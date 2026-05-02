@@ -19,6 +19,7 @@ import PendingPaymentPage from './components/PendingPaymentPage';
 const initialUserData: UserData = {
   id: '',
   role: 'user',
+  title: 'Alumni',
   alumniId: '',
   status: 'pending',
   paymentReceipt: '',
@@ -120,6 +121,7 @@ const App: React.FC = () => {
       const mapped: UserData = {
         id: profile.id,
         role: (profile.role as any) || 'user',
+        title: profile.title || 'Alumni',
         alumniId: profile.alumni_id || '',
         status: profile.status || 'pending',
         rejectionComments: profile.rejection_comments || '',
@@ -263,6 +265,7 @@ const App: React.FC = () => {
         return {
           id: profile.id,
           role: profile.role || 'user',
+          title: profile.title || 'Alumni',
           alumniId: profile.alumni_id || '',
           status: profile.status || 'pending',
           rejectionComments: profile.rejection_comments || '',
@@ -392,6 +395,7 @@ const App: React.FC = () => {
                   return {
                     ...prev,
                     role: newData.role || prev.role,
+                    title: newData.title || prev.title,
                     alumniId: newData.alumni_id || prev.alumniId,
                     status: newData.status || prev.status,
                     rejectionComments: newData.rejection_comments ?? prev.rejectionComments,
@@ -1061,6 +1065,7 @@ const App: React.FC = () => {
         const mapped: UserData = {
           id: insertedData.id,
           role: insertedData.role ?? 'user',
+          title: insertedData.title ?? 'Alumni',
           alumniId: insertedData.alumni_id ?? '',
           status: insertedData.status ?? 'pending',
           paymentReceipt: insertedData.payment_receipt ?? '',

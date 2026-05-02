@@ -38,6 +38,7 @@ export interface PrivacySettings {
 export interface UserData {
   id: string; // Corresponds to Supabase auth.users.id
   role: 'user' | 'admin';
+  title: string;
   alumniId: string;
   status: 'pending' | 'verified' | 'rejected';
   rejectionComments?: string; // Comments explaining why the registration was rejected

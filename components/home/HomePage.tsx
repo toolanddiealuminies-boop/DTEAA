@@ -3,8 +3,6 @@ import Hero from './Hero';
 import About from './About';
 import OrganizationChart from './OrganizationChart';
 import Gallery from './Gallery';
-import SponsorPromoPopup from '../SponsorPromoPopup';
-import SponsorModal from '../dashboard/SponsorModal';
 import { supabase } from '../../lib/supabaseClient';
 
 import ConfirmationModal from '../ConfirmationModal';
@@ -17,8 +15,6 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ onLoginClick, onViewGallery, onViewAbout, userId }) => {
-    const [showPromoPopup, setShowPromoPopup] = useState(false);
-    const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
     const [isRegistered, setIsRegistered] = useState(false);
     const [showAlreadyRegisteredModal, setShowAlreadyRegisteredModal] = useState(false);
 
@@ -26,39 +22,18 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick, onViewGallery, onView
         if (!userId) return;
 
         const checkStatus = async () => {
-            // 1. Check Registration
             const { data: regData } = await supabase
                 .from('event_registrations')
                 .select('status')
                 .eq('user_id', userId)
-                .eq('event_id', 'alumni-meet-2026') // Focused on this event for now
-                .maybeSingle();
-
-            setIsRegistered(!!regData);
-
-            if (!regData) return; // Not registered
-
-            // 2. Check Sponsorship
-            const { data: sponsorData } = await supabase
-                .from('event_sponsorships')
-                .select('id')
-                .eq('user_id', userId)
                 .eq('event_id', 'alumni-meet-2026')
                 .maybeSingle();
 
-            if (!sponsorData) {
-                // Registered but not sponsored
-                setTimeout(() => setShowPromoPopup(true), 3000);
-            }
+            setIsRegistered(!!regData);
         };
 
         checkStatus();
     }, [userId]);
-
-    const handleSponsorClick = () => {
-        setShowPromoPopup(false);
-        setIsSponsorModalOpen(true);
-    };
 
     const handleHeroAction = () => {
         if (userId && isRegistered) {
@@ -70,13 +45,11 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick, onViewGallery, onView
 
     return (
         <div className="font-sans text-gray-900 bg-transparent">
-            {/* Navbar handled by Global Layout */}
             <Hero onJoinClick={handleHeroAction} onLearnMoreClick={onViewAbout} />
             <About />
             <OrganizationChart />
             <Gallery onViewGallery={onViewGallery} />
 
-            {/* Already Registered Modal */}
             <ConfirmationModal
                 isOpen={showAlreadyRegisteredModal}
                 title="Already Registered"
@@ -85,27 +58,10 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick, onViewGallery, onView
                 cancelText="Close"
                 onConfirm={() => {
                     setShowAlreadyRegisteredModal(false);
-                    onLoginClick(); // Redirects to dashboard if logged in
+                    onLoginClick();
                 }}
                 onCancel={() => setShowAlreadyRegisteredModal(false)}
             />
-
-            {/* Sponsor Popup & Modal */}
-            <SponsorPromoPopup
-                isOpen={showPromoPopup}
-                onClose={() => setShowPromoPopup(false)}
-                onSponsorClick={handleSponsorClick}
-            />
-
-            {userId && (
-                <SponsorModal
-                    isOpen={isSponsorModalOpen}
-                    onClose={() => setIsSponsorModalOpen(false)}
-                    userId={userId}
-                    eventId="alumni-meet-2026"
-                    onSuccess={() => setShowPromoPopup(false)} // Don't show again
-                />
-            )}
         </div>
     );
 };

@@ -73,7 +73,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userData }) => {
           )}
           <div>
             <h3 className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary text-center sm:text-left">{userData.personal.firstName} {userData.personal.lastName}</h3>
-            <p className="text-lg text-primary font-semibold text-center sm:text-left">{userData.alumniId || '—'}</p>
+            <p className="text-lg text-primary font-semibold text-center sm:text-left">{userData.title || 'Alumni'}</p>
+            <p className="text-md text-light-text-secondary dark:text-dark-text-secondary text-center sm:text-left">{userData.alumniId || '—'}</p>
             <p className="text-md text-light-text-secondary dark:text-dark-text-secondary text-center sm:text-left">Batch of {userData.personal.passOutYear || '—'}</p>
           </div>
         </div>

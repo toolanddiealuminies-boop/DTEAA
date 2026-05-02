@@ -203,9 +203,11 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
       const fullName = `${userData.personal.firstName} ${userData.personal.lastName}`;
       ctx.fillText(fullName, 125, 125);
       
-      ctx.font = '14px Arial, sans-serif';
-      ctx.fillText(`Batch of ${userData.personal.passOutYear}`, 125, 145);
-      ctx.fillText(`Blood Group: ${userData.personal.bloodGroup}`, 125, 165);
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.fillText(userData.title || 'Alumni', 125, 145);
+      ctx.font = '13px Arial, sans-serif';
+      ctx.fillText(`Batch of ${userData.personal.passOutYear}`, 125, 165);
+      ctx.fillText(`Blood Group: ${userData.personal.bloodGroup}`, 125, 183);
       
       // ID section
       ctx.save();
@@ -394,8 +396,9 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
                       <h2 className="text-white text-lg font-bold leading-tight">
                         {userData.personal.firstName} {userData.personal.lastName}
                       </h2>
-                      <p className="text-white/95 text-sm mt-1">Batch of {userData.personal.passOutYear}</p>
-                      <p className="text-white/90 text-sm">Blood Group: {userData.personal.bloodGroup}</p>
+                      <p className="text-white/95 text-sm font-semibold mt-1">{userData.title || 'Alumni'}</p>
+                      <p className="text-white/90 text-xs">Batch of {userData.personal.passOutYear}</p>
+                      <p className="text-white/90 text-xs">Blood Group: {userData.personal.bloodGroup}</p>
                     </div>
                   </div>
                 </div>
