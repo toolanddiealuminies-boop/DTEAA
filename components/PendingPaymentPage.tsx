@@ -260,48 +260,11 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                 </h4>
                                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 
-                                    {/* === MOBILE VIEW === */}
-                                    <div className="md:hidden space-y-4">
-                                        {/* Pay via UPI App — primary action on mobile */}
-                                        <a
-                                            href={`upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=${selectedAmount}&cu=INR&tn=DTEAA%20Alumni%20Meet&tr=DTEAA-${userData.alumniId}-${Date.now()}&mc=8398`}
-                                            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
-                                        >
-                                            📱 Pay ₹{selectedAmount} via UPI App
-                                        </a>
-                                        <p className="text-xs text-gray-500 text-center">Opens GPay, PhonePe, Paytm, CRED etc.</p>
-
-                                        {/* Divider */}
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-1 h-px bg-gray-200"></div>
-                                            <span className="text-xs text-gray-400 font-medium">OR</span>
-                                            <div className="flex-1 h-px bg-gray-200"></div>
-                                        </div>
-
-                                        {/* Copy UPI ID — fallback on mobile */}
-                                        <div>
-                                            <p className="text-xs text-gray-500 mb-2 text-center">Copy UPI ID and pay manually</p>
-                                            <p className="font-mono font-semibold bg-white p-3 rounded border border-gray-200 text-gray-800 text-sm break-all text-center">
-                                                334703265956342@cnrb
-                                            </p>
-                                            <button
-                                                onClick={() => handleCopy('334703265956342@cnrb')}
-                                                className={`mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                                    copied === '334703265956342@cnrb'
-                                                        ? 'bg-green-50 border border-green-300 text-green-700'
-                                                        : 'bg-white border border-gray-200 text-gray-600 hover:border-[#003366] hover:text-[#003366] active:bg-blue-50'
-                                                }`}
-                                            >
-                                                {copied === '334703265956342@cnrb' ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy UPI ID</>}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* === DESKTOP VIEW === */}
-                                    <div className="hidden md:block space-y-4">
-                                        {/* QR Code — prominent on desktop */}
+                                    {/* === UNIFIED VIEW (MOBILE & DESKTOP) === */}
+                                    <div className="space-y-4">
+                                        {/* QR Code */}
                                         <div className="text-center">
-                                            <p className="text-sm font-medium text-gray-700 mb-3">Scan with any UPI App on your phone</p>
+                                            <p className="text-sm font-medium text-gray-700 mb-3">Scan with any UPI App</p>
                                             <img
                                                 src="/bank_details/QR_code.JPG"
                                                 alt="Payment QR Code"
@@ -316,9 +279,9 @@ const PendingPaymentPage: React.FC<PendingPaymentPageProps> = ({ userData, onLog
                                             <div className="flex-1 h-px bg-gray-200"></div>
                                         </div>
 
-                                        {/* Copy UPI ID — fallback on desktop */}
+                                        {/* Copy UPI ID */}
                                         <div>
-                                            <p className="text-xs text-gray-500 mb-2 text-center">Copy UPI ID and pay from your phone</p>
+                                            <p className="text-xs text-gray-500 mb-2 text-center">Copy UPI ID and pay from your app</p>
                                             <p className="font-mono font-semibold bg-white p-3 rounded border border-gray-200 text-gray-800 text-base break-all text-center">
                                                 334703265956342@cnrb
                                             </p>

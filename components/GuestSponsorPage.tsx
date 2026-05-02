@@ -262,13 +262,6 @@ const GuestSponsorPage: React.FC = () => {
                                                 alt="Payment QR Code"
                                                 className="w-40 h-auto mx-auto border border-gray-200 rounded-lg shadow-sm"
                                             />
-                                            <a
-                                                href={`upi://pay?pa=334703265956342@cnrb&pn=DTEA%20Association&am=${amount}&cu=INR&tn=DTEAA%20Alumni%20Meet&tr=GUEST-${encodeURIComponent(email)}-${Date.now()}&mc=8398`}
-                                                className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-orange-700 transition-all text-sm"
-                                            >
-                                                📱 Pay ₹{amount.toLocaleString()} via UPI App
-                                            </a>
-                                            <p className="text-xs text-gray-400 mt-2">Opens GPay, Paytm, PhonePe, CRED etc. (Mobile only)</p>
                                         </div>
                                     </div>
                                 </div>
