@@ -207,7 +207,6 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
       ctx.fillText(userData.title || 'Alumni', 125, 145);
       ctx.font = '13px Arial, sans-serif';
       ctx.fillText(`Batch of ${userData.personal.passOutYear}`, 125, 165);
-      ctx.fillText(`Blood Group: ${userData.personal.bloodGroup}`, 125, 183);
       
       // ID section
       ctx.save();
@@ -302,6 +301,12 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
       if (line.trim()) {
         ctx.fillText(line.trim(), backX + 45, y);
       }
+      
+      // Blood Group
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Blood Group: ${userData.personal.bloodGroup}`, backX + cardWidth / 2, 225);
       
       // Labels
       ctx.fillStyle = '#666666';
@@ -398,7 +403,6 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
                       </h2>
                       <p className="text-white/95 text-sm font-semibold mt-1">{userData.title || 'Alumni'}</p>
                       <p className="text-white/90 text-xs">Batch of {userData.personal.passOutYear}</p>
-                      <p className="text-white/90 text-xs">Blood Group: {userData.personal.bloodGroup}</p>
                     </div>
                   </div>
                 </div>
@@ -440,6 +444,13 @@ const IdCard: React.FC<IdCardProps> = ({ userData }) => {
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                   <p className="text-white text-base leading-relaxed">
                     {formatAddress() || 'Address not provided'}
+                  </p>
+                </div>
+                
+                {/* Blood Group */}
+                <div className="mt-6">
+                  <p className="text-white text-sm font-semibold">
+                    Blood Group: {userData.personal.bloodGroup}
                   </p>
                 </div>
                 
