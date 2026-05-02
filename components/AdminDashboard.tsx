@@ -664,6 +664,27 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
     XLSX.writeFile(wb, "Event_Sponsorships.xlsx");
   };
 
+  const exportVerificationsToExcel = () => {
+    const dataToExport = users.map(user => ({
+      'Alumni ID': user.alumniId,
+      'First Name': user.personal.firstName,
+      'Last Name': user.personal.lastName,
+      'Email': user.personal.email,
+      'Status': user.status,
+      'Payment Receipt': !user.paymentReceipt || user.paymentReceipt === 'ALUMNI_MEET_REGISTRATION' ? 'Not uploaded' : 'Uploaded',
+      'Rejection Comments': user.rejectionComments || '',
+      'Phone': user.contact.mobile,
+      'Blood Group': user.personal.bloodGroup,
+      'Pass Out Year': user.personal.passOutYear,
+      'Highest Qualification': user.personal.highestQualification
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Member_Verifications");
+    XLSX.writeFile(wb, "Member_Verifications.xlsx");
+  };
+
   const eventStats = useMemo(() => {
     const totalReg = eventRegistrations.filter(r => r.attending).length;
     const totalPax = eventRegistrations.reduce((acc, curr) => acc + (curr.attending ? (curr.total_participants || 1) : 0), 0);
@@ -957,6 +978,13 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
 
               <div className="flex items-end space-x-2">
                 <button
+                  onClick={exportVerificationsToExcel}
+                  className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Export to Excel
+                </button>
+                <button
                   onClick={() => { setQuery(''); setStatusFilter('all'); }}
                   className="px-3 py-2 border border-light-border dark:border-dark-border rounded text-sm text-light-text-primary dark:text-dark-text-primary bg-light-bg dark:bg-dark-bg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                 >
@@ -1035,8 +1063,8 @@ const AdminDashboard: React.FC<Props> = ({ users = [], onVerify, onReject }) => 
                       <div className="flex items-center space-x-2 ml-4">
                         <div className="text-sm mr-2 text-right hidden sm:block">
                           <div className="text-xs text-gray-500 dark:text-gray-400">Payment Receipt:</div>
-                          <div className={`text-sm ${user.paymentReceipt ? 'text-green-700 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                            {user.paymentReceipt ? 'Uploaded' : 'Missing'}
+                          <div className={`text-sm ${!user.paymentReceipt || user.paymentReceipt === 'ALUMNI_MEET_REGISTRATION' ? 'text-red-500 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
+                            {!user.paymentReceipt || user.paymentReceipt === 'ALUMNI_MEET_REGISTRATION' ? 'Not uploaded' : 'Uploaded'}
                           </div>
                         </div>
                         <button
